@@ -1,0 +1,37 @@
+//***PDB, Vesta and Kirkland XYZ file conversion parameters
+1.Input_file_name: 6ybq.pdb
+2.Input_file_type_(see_below): 0
+3.Carbon_support_thickness_and_width_in_Angstroms: 0 0
+4.CT_sample_cube_side_length_in_Angstroms: 1.0
+5.Desired_rotation_angle_around_z_axis_in_degrees: 0.0
+6.Desired_rotation_angle_around_y'_axis_in_degrees: 0.0
+7.Desired_rotation_angle_around_z"_axis_in_degrees: 0.0
+8.Centre_structure_in_the_miniball_(1)_or_do_not_shift_(0): 1
+9.Maximum_distance_in_Angstroms_to_remove_duplicates: 0.0
+10.Sort_0=no_sort_1=increasing_z_2=decreasing_occupancy: 0
+11.Output_file_name: 6ybq.xyz
+12.Out_file_type_(see_below): 2
+13.Free-form_1st_line_in_output_file: Engineered_glycolyl-CoA_carboxylase_(quintuple_mutant)_with_bound_CoA
+
+//Input parameter file for pdb.exe program
+//1st parameter contains input file name
+//2nd parameter contains input file type: 0 - PDB input file, 1 - Vesta XYZ input file, 2 - Kirkland XYZ file, 3 - text file with orientations/defocuses.
+//3rd parameter contains optional carbon support layer thickness and transversal extent (x=y) in Angstroms, separated by a single white space
+//4th parameter contains the desired CT sample cube side length in Angstroms (should be large enough to contain the whole sample inside for arbitrary 3D rotations)
+//5th parameter contains the desired rotation angle around z axis in degrees
+//6th parameter contains the desired rotation angle around y' axis in degrees (y' is the y axis after the initial rotation around the z axis)
+//7th parameter contains the desired rotation angle around z" axis in degrees (z" is the z axis after the initial rotations around the z and y' axes)
+//8th parameter: 1 = shift the structure so that to centre it in the determined minimal containing ball, 0 = do not shift the structure
+//9th parameter: maximum distance (in Angstroms) between two atoms to be considered "duplicates" and remove all but one; if this distance is negative, no action will be taken
+//10th parameter: sort output: 0=no_sort, 1=sort_by_z_coordinates_ascending 2=sort_by_occupancy_column_values_descending (sorting according to atomic numbers is always done)
+//11th parameter contains output file name
+//12th parameter: 0 - muSTEM-format XTL file, 1 - Vesta XYZ file, 2 -  Kirkland-format XYZ file
+//13th parameter contains the free-form info line that will be recorded into the first line of the output file
+
+// This program reads a PDB, Vesta XYZ or Kirkland XYZ file, 
+// centers the position of the "molecule" within the "enclosing cube" [0, ctblength] x [0, ctblength] x [0, ctblength],
+// optionally adds a layer of amorphous carbon immediately upstream of the "molecule" along the z coordinate,
+// optionally rotates the "molecule" (together with the carbon substrate) by the given "intrinsic" Euler angles around the z, y' and z" axes, and
+// optionally removes "duplicate" atoms that are located closer than the given distance to other atoms in the "molecule",
+// optionally sorts all atoms in ascending order with respect to z coordinate or with respect to decreasing occupancy parameter, and
+// outputs the data in the form of a muSTEM, Vesta XYZ or Kirkland XYZ file.

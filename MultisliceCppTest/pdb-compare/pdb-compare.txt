@@ -1,0 +1,24 @@
+//*** PDB compare program
+1.Input_test_file_name: outAmg2000.xyz
+2.Type_of_the_input_test_file_(see_below): 2
+3.Rotate_test_structure_around_z,_y'_and_z"_axes_by_(degrees): 0 0 0
+4.Input_reference_file_name: 7kod_DW_noH.xyz
+5.Type_of_the_input_reference_file_(see_below): 2
+6.Maximum_distance_in_Angstroms_for_atom_matching: 1.0
+7.Sort_output:_0=no_sort_1=increasing_z_2=increasing_matched_distance: 0
+8.Use_Hungarian_algorithm_(0=no,_1=yes): 0
+9.Output_file_name: zzzmg2000_compare.txt
+10.Free-form_line_for_output_file: ***
+
+//Input parameter file for pdb.exe program
+//1st line contains input test file name
+//2nd line: type of the 1st input file: 0 - PDB input file, 1 - Vesta XYZ input file, 2 - Kirkland XYZ file.
+//3rd line contains Euler rotation angles in degrees that are applied to the test structure before comparison
+//4th line contains input reference file name - must be equal to or longer than the test file
+//5th line: type of the 2nd input file: 0 - PDB input file, 1 - Vesta XYZ input file, 2 - Kirkland XYZ file.
+//6th line contains the maximum distance in Angstroms below which a found atom match is considered acceptable
+//7th line: output file sorting: 0 - no sort, 1 - sort by ascending order of z coordinate, 2- sort by distances between the matched test and reference atoms in the ascending order
+//8th line: switch for the use of a more accurate, but potentially very slow, Hungarian matching algorithm: 0 = don't use Hungarian algorithm, 1 = use it.
+//			for any structures with approximately 100 or more atoms, the Hungarian algorithm option is likely to be too slow
+//9th line contains output file name
+//10th line contains the free-form info line that will be recorded into the first line of the output file

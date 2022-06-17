@@ -1,0 +1,193 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|Win32">
+      <Configuration>Debug</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|Win32">
+      <Configuration>Release</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <VCProjectVersion>16.0</VCProjectVersion>
+    <ProjectGuid>{401E48BB-10DC-4817-8B81-96973246DC74}</ProjectGuid>
+    <RootNamespace>MsctKirkland</RootNamespace>
+    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v143</PlatformToolset>
+    <CharacterSet>MultiByte</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v143</PlatformToolset>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <CharacterSet>MultiByte</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v143</PlatformToolset>
+    <CharacterSet>MultiByte</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v143</PlatformToolset>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <CharacterSet>MultiByte</CharacterSet>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Label="Shared">
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup />
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <Optimization>MaxSpeed</Optimization>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <SDLCheck>true</SDLCheck>
+      <ConformanceMode>true</ConformanceMode>
+      <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>$(SolutionDir)..\TemsimLibrary;$(SolutionDir)..\fftwlib;$(SolutionDir)..\XArrayLibrary;$(SolutionDir)MsctKirkland;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <LanguageStandard>stdcpp17</LanguageStandard>
+    </ClCompile>
+    <Link>
+      <SubSystem>Console</SubSystem>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+      <AdditionalLibraryDirectories>$(SolutionDir)..\fftwlib;$(OutDir)..\..\MsctKirkland\x64\Release;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>libfftw3f-3.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <Optimization>Disabled</Optimization>
+      <SDLCheck>true</SDLCheck>
+      <ConformanceMode>true</ConformanceMode>
+    </ClCompile>
+    <Link>
+      <SubSystem>Console</SubSystem>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <Optimization>Disabled</Optimization>
+      <SDLCheck>true</SDLCheck>
+      <ConformanceMode>true</ConformanceMode>
+      <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>$(SolutionDir)..\TemsimLibrary;$(SolutionDir)..\fftwlib;$(SolutionDir)..\XArrayLibrary;$(SolutionDir)MsctKirkland;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <LanguageStandard>stdcpp17</LanguageStandard>
+    </ClCompile>
+    <Link>
+      <SubSystem>Console</SubSystem>
+      <AdditionalLibraryDirectories>$(SolutionDir)..\fftwlib;$(OutDir)..\..\MsctKirkland\x64\Debug;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>libfftw3f-3.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <Optimization>MaxSpeed</Optimization>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <SDLCheck>true</SDLCheck>
+      <ConformanceMode>true</ConformanceMode>
+    </ClCompile>
+    <Link>
+      <SubSystem>Console</SubSystem>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClCompile Include="..\..\TemsimLibrary\AddIce.cpp" />
+    <ClCompile Include="..\..\TemsimLibrary\autoslic.cpp" />
+    <ClCompile Include="..\..\TemsimLibrary\autosliccmd.cpp" />
+    <ClCompile Include="..\..\TemsimLibrary\cfpix.cpp" />
+    <ClCompile Include="..\..\TemsimLibrary\floatTIFF.cpp" />
+    <ClCompile Include="..\..\TemsimLibrary\pdb.cpp" />
+    <ClCompile Include="..\..\TemsimLibrary\slicelib.cpp" />
+    <ClCompile Include="..\..\XArrayLibrary\IXAHWave.cpp" />
+    <ClCompile Include="..\..\XArrayLibrary\Ooura_fftsg2d_dbl.c" />
+    <ClCompile Include="..\..\XArrayLibrary\Ooura_fftsg2d_flt.c" />
+    <ClCompile Include="..\..\XArrayLibrary\Ooura_fftsg_dbl.c" />
+    <ClCompile Include="..\..\XArrayLibrary\Ooura_fftsg_flt.c" />
+    <ClCompile Include="..\..\XArrayLibrary\stdafx.cpp" />
+    <ClCompile Include="..\..\XArrayLibrary\XAHWave.cpp" />
+    <ClCompile Include="..\..\XArrayLibrary\XArray.cpp" />
+    <ClCompile Include="..\..\XArrayLibrary\XA_file.cpp" />
+    <ClCompile Include="..\..\XArrayLibrary\XA_ini.cpp" />
+    <ClCompile Include="MultisliceK.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\..\fftwlib\fftw3.h" />
+    <ClInclude Include="..\..\TemsimLibrary\AddIce.h" />
+    <ClInclude Include="..\..\TemsimLibrary\autoslic.hpp" />
+    <ClInclude Include="..\..\TemsimLibrary\autosliccmd.h" />
+    <ClInclude Include="..\..\TemsimLibrary\cfpix.hpp" />
+    <ClInclude Include="..\..\TemsimLibrary\floatTIFF.hpp" />
+    <ClInclude Include="..\..\TemsimLibrary\pdb.h" />
+    <ClInclude Include="..\..\TemsimLibrary\slicelib.hpp" />
+    <ClInclude Include="..\..\XArrayLibrary\IXAHead.h" />
+    <ClInclude Include="..\..\XArrayLibrary\IXAHWave.h" />
+    <ClInclude Include="..\..\XArrayLibrary\OouraFft.h" />
+    <ClInclude Include="..\..\XArrayLibrary\stdafx.h" />
+    <ClInclude Include="..\..\XArrayLibrary\XAHWave.h" />
+    <ClInclude Include="..\..\XArrayLibrary\XArray.h" />
+    <ClInclude Include="..\..\XArrayLibrary\XArray1D.h" />
+    <ClInclude Include="..\..\XArrayLibrary\XArray2D.h" />
+    <ClInclude Include="..\..\XArrayLibrary\XArray3D.h" />
+    <ClInclude Include="..\..\XArrayLibrary\XA_data.h" />
+    <ClInclude Include="..\..\XArrayLibrary\XA_fft2.h" />
+    <ClInclude Include="..\..\XArrayLibrary\XA_file.h" />
+    <ClInclude Include="..\..\XArrayLibrary\XA_head1.h" />
+    <ClInclude Include="..\..\XArrayLibrary\XA_head2.h" />
+    <ClInclude Include="..\..\XArrayLibrary\XA_ini.h" />
+    <ClInclude Include="..\..\XArrayLibrary\XA_move2.h" />
+    <ClInclude Include="..\..\XArrayLibrary\XA_nrrand.h" />
+    <ClInclude Include="..\..\XArrayLibrary\XA_spln2.h" />
+    <ClInclude Include="..\..\XArrayLibrary\XA_tiff.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <Text Include="DefocusRand108_2_NEW2.txt" />
+    <Text Include="EvInsideAspartate.txt" />
+    <Text Include="MsctKirkland.txt" />
+    <Text Include="ReadmeMsctKirkland.txt" />
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+</Project>
