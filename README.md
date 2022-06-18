@@ -12,3 +12,7 @@ Description of the code and the underlying theory can be found in E. J. Kirkland
 See MsctKirkland/ReadmeUTR.txt file for usage instructions.
 (3) pdb - simple programs for manipulation of XYZ files. See pdb/ReadmePdb.txt for usage instructions.
 (4) pdb-compare - simple program for comparing pairs of XYZ files. See pdb-compare/ReadmePdb-compare.txt for usage instructions.
+
+The folder fftwlib contains FFTW (Fast Fourier Transform) modules used by the main programs listed above. Details about FFTW libraries and how to compile them under different OS can found here: https://www.fftw.org/. The user may prefer to compile their own versions of these libraries. Note that both single-precision (float) and double-precision (double = default) 2D and 3D FFT routines may be required.
+
+The folders XArrayLibrary and TemsimLibrary contain auxilliary modules used for compilation of the 4 main programs listed above. XArrayLibrary mostly contains general-purpose C++ templates implementing 1D, 2D and 3D matrices and mathematical operations on them. TemsimLibrary contains various modules used by MsctKirlkand, pdb and pdb-compare programs. See individual modules for details.
