@@ -1,6 +1,8 @@
 # Unified Tomographic Reconstruction solution
 A collection of C++ source code modules for forward and inverse simulations of Unified Tomographic Reconstruction.
 
+29 June 2022. PLEASE, NOTE THAT A NEW VERSION OF THE CODE IN THIS REPOSITORY WILL BE UPLOADED IN THE NEXT FEW DAYS. IT WILL CONTAIN A NUMBER OF IMPORTANT BUG FIXES AND UPDATES. IF YOU ARE ALREADY USING THE INITIAL VERSION OF THE CODE, IT MAY BE WORTH UPDATING TO THE NEW VERSION WHEN IT ARRIVES.
+
 The code has been compiled and tested under Windows x64 OS (see the included Microsoft Visual Studio 2022 solution configuration files) and under Ubuntu Linux 20.04.4 LTS using gcc 9.4.0 compiler (see the makefiles in Linux_ subfolders of MultisliceCppTest/PhaseRetrieval).
 
 The theory behind the UTR algorithm can be found in the paper: TIMUR E. GUREYEV, HAMISH G. BROWN, HARRY M. QUINEY, AND LESLIE J. ALLEN, "Fast unified reconstruction algorithm for conventional, phase-contrast and diffraction tomography", arXiv.org (2022).
