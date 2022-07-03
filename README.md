@@ -1,7 +1,7 @@
 # Unified Tomographic Reconstruction solution
 A collection of C++ source code modules for forward and inverse simulations of Unified Tomographic Reconstruction.
 
-29 June 2022. PLEASE, NOTE THAT A NEW VERSION OF THE CODE IN THIS REPOSITORY WILL BE UPLOADED IN THE NEXT FEW DAYS. IT WILL CONTAIN A NUMBER OF IMPORTANT BUG FIXES AND UPDATES. IF YOU ARE ALREADY USING THE INITIAL VERSION OF THE CODE, IT MAY BE WORTH UPDATING TO THE NEW VERSION WHEN IT ARRIVES.
+UPDATE 3 July 2022. Multiple updates and bug fixes have been applied. The main change, compared to the previous version, is related to the use of mutlithreading in FFTW library. The FFTW libraries have been compiled locally in Windows 10, in Linux we still use the standard installed FFTW libraries (version 3.3.5). Statically linked FFTW libraries are now used instead of DLLs in most places. The internal multithreading is still based on OMP, but has been re-modelled, resulting in imroved (x2-x3) performance. Proper (quantitatively correct) normalization and noise filtering have been implemented in UTR.
 
 The code has been compiled and tested under Windows x64 OS (see the included Microsoft Visual Studio 2022 solution configuration files) and under Ubuntu Linux 20.04.4 LTS using gcc 9.4.0 compiler (see the makefiles in Linux_ subfolders of MultisliceCppTest/PhaseRetrieval).
 
@@ -15,6 +15,6 @@ See MsctKirkland/ReadmeUTR.txt file for usage instructions.
 (3) pdb - simple programs for manipulation of XYZ files. See pdb/ReadmePdb.txt for usage instructions.
 (4) pdb-compare - simple program for comparing pairs of XYZ files. See pdb-compare/ReadmePdb-compare.txt for usage instructions.
 
-The folder fftwlib contains FFTW (Fast Fourier Transform) modules used by the main programs listed above. Details about FFTW libraries and how to compile them under different OS can found here: https://www.fftw.org/. The user may prefer to compile their own versions of these libraries. Note that both single-precision (float) and double-precision (double = default) 2D and 3D FFT routines may be required.
+Details about FFTW libraries and how to compile them under different OS can found here: https://www.fftw.org/. The user may prefer to compile their own versions of these libraries. Note that both single-precision (float) and double-precision (double = default) 2D and 3D FFT routines in the multi-threaded form may be required.
 
 The folders XArrayLibrary and TemsimLibrary contain auxilliary modules used for compilation of the 4 main programs listed above. XArrayLibrary mostly contains general-purpose C++ templates implementing 1D, 2D and 3D matrices and mathematical operations on them. TemsimLibrary contains various modules used by MsctKirlkand, pdb and pdb-compare programs. See individual modules for details.
