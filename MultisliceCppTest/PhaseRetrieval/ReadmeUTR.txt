@@ -68,7 +68,7 @@ Here is a typical example of a valid UTR.txt parameter file.
 14.Spherical_aberration_Cs3,_Cs5_in_mm: 0.0 0.0
 15.Phase_retrieval_method:_none(0),_TIE-Hom-2D(1),_TIE-Hom-3D(2)_CTF-2D(3)_or_CTF-3D(4): 3
 16.Apply_Ewald_sphere_curvature_correction:_No(0)_or_Yes(1): 1
-17.Absorption_fraction_beta/delta: 0.0001
+17.Absorption_coefficient_beta/delta_(NOTE:_n=1+delta+i*beta): 0.0
 18.Average_noise-to-signal_ratio(1/SNR)_in_input_images: 0.666667
 19.Tikhonov_regularization_parameter: 0.1
 20.Enforce_symmetry:_not_apply(0),_distribute_input_orientations(1),_post_apply(2): 0
@@ -238,7 +238,8 @@ the Ewald sphere curvature correction is applied.
 
 Parameter 17 contains the value of the absorption coefficient in the form of a fraction of the real increment of
 the refractive index, i.e. when n = 1 + delta + i beta, then this coefficient is equal to beta / delta. The value must
-be between -1 and 1 (inclusive). Typical value for electron microscopy is between zero and 0.1.
+be non-negative (with typical values between 0 and 0.1) in TEM imaging cases (i.e. when Parameter 8 is equal to 0) 
+and must be negative (with typical values between (-0.1 and -0.0001) in hard X-ray imaging cases (i.e. when Parameter 8 is equal to 1).
 
 Parameter 18 contains the average noise-to-signal ratio (1/SNR) in input images. The value of this parameter is used for
 fine-tuning the noise filtering in the Fourier space. If this parameter is equal to 0, no noise filtering is applied.

@@ -20,6 +20,10 @@
 		In order to optimize the execution of FFTW routines, a "plan" should be "estimated" first, which takes time and messes up the storage volume. 
 		When 2D FFT is called repeatedly, it is cheaper to reuse a single "optimized" plan and the same	internal stordage, 
 		and shift external data in and out for processing, ratherthan use external array storage, renewing the "plans" every time.
+	
+		NOTE: this class uses FFTW libraries with threads
+
+		NOTE: fftw_init_threads() function must be called prior to calls to this class's constructors
 */
 #if !defined FFTWD2C_H
 #define FFTWD2C_H
@@ -39,12 +43,10 @@ class Fftwd2c
 	// Structures
 	// Constructors
 public:
-	//! Default constructor
-	//Fftwd2c() { if (!IsEmpty()) Cleanup(); uiflag = FFTW_ESTIMATE;  }
 	//! Constructor allocating internal storage and creating "FFT plans"
-	Fftwd2c(int ny1, int nx1, bool bMeasure = true);
+	Fftwd2c(int ny1, int nx1, int nThreads, bool bMeasure = false);
 	//! Constructor using external storage and creating "FFT plans"
-	Fftwd2c(xar::XArray2D<xar::dcomplex>& xarc2D);
+	Fftwd2c(xar::XArray2D<xar::dcomplex>& xarc2D, int nThreads, bool bMeasure = false);
 private:
 	//! Copy constructor (declared private to prohibit copying)
 	Fftwd2c(const Fftwd2c& other) {  }
@@ -89,10 +91,9 @@ public:
 	// Inverse transform using external arrays with an already existing plan (speeds up repeated transforms with the same dimensions)
 	void InverseFFT(xar::XArray2D<xar::dcomplex>& xarc2D);
 	// Regularized inverse minus-Laplacian, leaving the input array in the unshuffled form in the Fourier space
-	// NOTE: compared to TIE-Hom, alpha = 1 / [(delta/beta) * PI * dz * wl]
 	void InverseMLaplacian1(xar::XArray2D<xar::dcomplex>& xarc2D, double alpha, double norm);
 	// Print internal array
-	void PrintComplexArray(const char* message);
+	//void PrintComplexArray(const char* message);
 
 private:
 	// Member variables

@@ -198,8 +198,8 @@ int main(int argc, char* argv[])
 		// for RAW files, these parameter determine how the images are read; for TIFF and GRD files, these parameters may be used for trimming the frames
 		if (sscanf(cline, "%s %s %s", ctitle, cparam, cparam1) != 3)
 			throw std::runtime_error("Error reading Width Height from input parameter file.");
-		index_t nx = atoi(cparam), nx0;
-		index_t ny = atoi(cparam1), ny0;
+		index_t nx = atoi(cparam);
+		index_t ny = atoi(cparam1);
 		printf("\nDimensions of input images (possibly, after trimming or padding): width = %zd, height = %zd (pixels)", nx, ny);
 		int nxd2 = int(nx / 2), nyd2 = int(ny / 2);
 		if (nx != 2 * nxd2 || ny != 2 * nyd2)
@@ -357,11 +357,10 @@ int main(int argc, char* argv[])
 		fgets(cline, 1024, ff0); strtok(cline, "\n"); // 17. Absorption fraction beta / delta
 		if (sscanf(cline, "%s %s", ctitle, cparam) != 2) throw std::runtime_error("Error reading absorptioin coefficient from input parameter file.");
 		double asigma = atof(cparam);
-		printf("\nAbsorption fraction beta / delta = %g", asigma);
-		if (asigma < 0) throw std::runtime_error("Error: absorption fraction in input parameter file cannot be negative.");
-		if (asigma == 0 && (iModality == 1 || iCTFcorrectionMode == 1 || iCTFcorrectionMode == 2)) 
-			throw std::runtime_error("Error: absorption fraction in input parameter file must be positive in X-ray CT mode or when using TIE-Hom.");
-		//if (iCTFcorrectionMode == 1 || iCTFcorrectionMode == 2) printf("\nEffective regularization parameter alpha for inverse 3D Laplacian = %g", asigma / (PI * zoutAver * wl));
+		printf("\nAbsorption fraction beta/delta = %g", asigma);
+		if (iModality == 0 && asigma < 0) throw std::runtime_error("Error: beta/delta must be non-negative in TEM mode.");
+		if (iModality == 1 && asigma >= 0) throw std::runtime_error("Error: beta/delta must be negative in hard X-ray mode.");
+		if (asigma >= 0 && (iCTFcorrectionMode == 1 || iCTFcorrectionMode == 2)) throw std::runtime_error("Error: beta/delta must be negative in TIE-Hom phase retrieval.");
 
 		fgets(cline, 1024, ff0); strtok(cline, "\n"); // 18. Average noise to signal ratio (1/SNR) in input images (1/sqrt(Nphot))
 		if (sscanf(cline, "%s %s", ctitle, cparam) != 2) throw std::runtime_error("Error reading average noise-to-signal ratio in input images from input parameter file.");
@@ -373,11 +372,11 @@ int main(int argc, char* argv[])
 		fgets(cline, 1024, ff0); strtok(cline, "\n"); // 19. Tikhonov regularization parameter
 		if (sscanf(cline, "%s %s", ctitle, cparam) != 2) throw std::runtime_error("Error reading minimal phase reconstruction error/regulariztion parameter from input parameter file.");
 		double epsilon = atof(cparam);
-		printf("\nTikhonov regularization parameter = %g", epsilon);
+		printf("\nTikhonov regularization epsilon parameter = %g", epsilon);
 		if (epsilon < 0)
 			throw std::runtime_error("Error: the regulalization parameter must be non-negative.");
 		if (epsilon == 0 && asigma == 0)
-			throw std::runtime_error("Error: when beta / delta = 0, epsilon must be positive.");
+			throw std::runtime_error("Error: when beta/delta == 0, epsilon must be positive.");
 
 		fgets(cline, 1024, ff0); strtok(cline, "\n"); //20. Enforce symmetry: not_apply(0), post-apply(1), or distribute input orientations(2)
 		if (sscanf(cline, "%s %s", ctitle, cparam) != 2) throw std::runtime_error("Error reading enforcing symmetry mode from input parameter file.");
@@ -626,8 +625,10 @@ int main(int argc, char* argv[])
 		std::unique_ptr<IXAHead> pHead(new Wavehead2D(wl, ylo, yhi, xlo, xhi)); // any header data in input image files will be ignored
 
 		printf("\n\nPreparing FFTW library ...");
+		if (!fftw_init_threads())
+			std::runtime_error("Error: multi-threaded initialization of FFTW library failed.");
 		// single Fftwd2c object is used for repeated 2D FFTs using FFTW later (the plan is created at this point and reused later)
-		Fftwd2c fftw2D((int)ny, (int)nx, true);
+		Fftwd2c fftw2D((int)ny, (int)nx, 1, true); // we don't use mutlithreaded 2D FFT here, as the code calling these functions below is already mutlithreaded
 
 		XArray3D<float> K3out; // big 3D reconstructed array (needs to fit into RAM alongside with with everything else)
 
@@ -669,12 +670,12 @@ int main(int argc, char* argv[])
 					else printf("\n*** Illumination angle[%d] = (%g, %g) (degrees)", na, angleZ / PI180, angleY / PI180);
 
 					// Centre of rotation expressions (linear phase factors)
-					dcomplex Fxc, Fyc, Fzc;
+					fcomplex Fxc, Fyc, Fzc;
 					if (bRotCentreShift)
 					{
-						Fxc = dcomplex(0, -1) * tPI * (dxc * (1.0 - cosangleY * cosangleZ) - dyc * sinangleZ + dzc * sinangleY * cosangleZ);
-						Fyc = dcomplex(0, -1) * tPI * (dxc * cosangleY * sinangleZ + dyc * (1.0 - cosangleZ) - dzc * sinangleY * sinangleZ);
-						Fzc = dcomplex(0, -1) * tPI * (-dxc * sinangleY + dzc * (1.0 - cosangleY));
+						Fxc = fcomplex(0, -1) * float(tPI * (dxc * (1.0 - cosangleY * cosangleZ) - dyc * sinangleZ + dzc * sinangleY * cosangleZ));
+						Fyc = fcomplex(0, -1) * float(tPI * (dxc * cosangleY * sinangleZ + dyc * (1.0 - cosangleZ) - dzc * sinangleY * sinangleZ));
+						Fzc = fcomplex(0, -1) * float(tPI * (-dxc * sinangleY + dzc * (1.0 - cosangleY)));
 					}
 
 					// start the execution timer per angle
@@ -699,8 +700,8 @@ int main(int argc, char* argv[])
 					else XArData::ReadFileGRD(int0, vinfilenames[0].c_str(), wl); //	read input GRD files
 					if (bVerboseOutput) liFileReadTime += (long)std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now() - start_timeNow).count();
 
-					int ny0 = int0.GetDim1();
-					int nx0 = int0.GetDim2();
+					index_t ny0 = int0.GetDim1();
+					index_t nx0 = int0.GetDim2();
 					if (nx0 != nx || ny0 != ny)
 					{
 						if (nx0 < nx && ny0 <= ny || ny0 < ny && nx0 <= nx)
@@ -762,19 +763,6 @@ int main(int argc, char* argv[])
 					XA_IWFR<double> xa_iwfr;
 					switch (iCTFcorrectionMode)
 					{
-					case 1: // 2D TIE-Hom correction
-						if (zout != 0) // if zout == 0, no TIE-Hom correction is applied (corresponding to the conventional=absorption CT case)
-						{
-							//if (bVerboseOutput)	printf("\nApplying 2D TIE-Hom correction to the input image ...");
-							//XA_2DTIE<double> xa_tie;
-							//xa_tie.DP(int0, 1.0 / asigma, zout);
-							int0.Log0(); // convert image intensity into ln(I / I_in), assuming I_in = 1.0 (after the flat field correction)
-							K2four = MakeComplex(int0, 0.0, false);
-							double alphatemp = 4.0 * PI * asigma / (zout * wl);
-							double normtemp = alphatemp * sqrt(1.0 + asigma * asigma) / asigma;
-							fftw2D.InverseMLaplacian1(K2four, alphatemp, normtemp);
-						}
-						break;
 					case 0: // no CTF correction
 					case 2: // 3D TIE-Hom correction later
 					case 4: // 3D CTF correction later
@@ -785,6 +773,18 @@ int main(int argc, char* argv[])
 						fftw2D.ForwardFFT(K2four);
 						K2four.Shuffle();
 						break;
+					case 1: // 2D TIE-Hom correction
+						if (zout != 0) // if zout == 0, no TIE-Hom correction is applied (corresponding to the conventional=absorption CT case)
+						{
+							//if (bVerboseOutput)	printf("\nApplying 2D TIE-Hom correction to the input image ...");
+							int0.Log0(); // convert image intensity into ln(I / I_in), assuming I_in = 1.0 (after the flat field correction)
+							K2four = MakeComplex(int0, 0.0, false);
+							//normalization of the inverse 2D minus-Laplacian here corresponds to the normalization of the InvertCTF_DT1() function below
+							double alphatemp = -4.0 * PI * asigma / (zoutAver * wl); // asigma should be negative, so alpha is positive
+							double normtemp = -alphatemp * sqrt(1.0 + asigma * asigma) / asigma;
+							fftw2D.InverseMLaplacian1(K2four, alphatemp, normtemp);
+						}
+						break;
 					case 3: // 2D CTF correction
 						//if (bVerboseOutput) printf("\nApplying 2D CTF correction to the input image ...");
 						int0.Log0(); // convert image intensity into ln(I / I_in), assuming I_in = 1.0 (after the flat field correction)
@@ -792,7 +792,7 @@ int main(int argc, char* argv[])
 							xa_iwfr.InvertCTF_DT1(int0, K2four, fftw2D, zout, vastigm[na].a, vastigm[na].b * PI180, k2maxo, Cs3, Cs5, asigma, epsilon, bESCC, 1);
 						else
 							xa_iwfr.InvertCTF_DT1(int0, K2four, fftw2D, zout, 0, 0, k2maxo, Cs3, Cs5, asigma, epsilon, bESCC, 1);
-						// the output (K2four) is normalized as delta * 4 * PI * sqrt(1 + sigma^2) / wl
+						// the output (K2four) is normalized as delta * 4 * PI * sqrt(1 + sigma^2) / wl / (xst * yst), the (xst * yst) term here is due to 2D DFT
 						break;
 					}
 					if (bSelectFrames) K2four *= sfWeights[na];
@@ -803,7 +803,7 @@ int main(int argc, char* argv[])
 					// Update 3D object at the current illumination direction on the Ewald sphere in 3D Fourier space
 					if (bVerboseOutput) start_timeNow = std::chrono::system_clock::now(); // start of back-propagation time
 					//if (bVerboseOutput) printf("\nUpdating 3D reconstructed object on the Ewald sphere ...");
-					CT_3Dgridding(K2four, V3, Samp3, angleY, angleZ, fxlo, fxst, fylo, fyst, fzlo, fzst, Fxc, Fyc, Fzc, wl, bRotCentreShift, bESCC);
+					CT_3Dgridding(K2four, V3, Samp3, angleY, angleZ, float(fxlo), float(fxst), float(fylo), float(fyst), float(fzlo), float(fzst), Fxc, Fyc, Fzc, wl, bRotCentreShift, bESCC);
 					if (bVerboseOutput)
 					{
 						liBackPropTime += (long)std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now() - start_timeNow).count();
@@ -828,7 +828,7 @@ int main(int argc, char* argv[])
 
 			// renormalization for the detected sampling and noise filtering
 			printf("\n\nNormalizing for the detected sampling and applying noise filter ...");
-			dInputNSR *= sqrt(nx * ny); // change of the STD of noise after the 2D DFT; later it will be multiplied by sqrt(F)
+			dInputNSR *= sqrt(nx * ny); // change of the STD of noise after the 2D DFT; later it will be multiplied by sqrt(Samp3)
 #if 0
 			//@@@@@@@@@@@@@@@@@@@@@@@@@!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!  start of temporary test code
 			K3out = Abs(V3);
@@ -842,29 +842,120 @@ int main(int argc, char* argv[])
 			exit(-22);
 			//@@@@@@@@@@@@@@@@@@@@@@@@@!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! end of temporary test code
 #endif
-			
-			// we want abs(V3) >  sqrt(2) * dInputNSR * sqrt(nx * ny) * sqrt(F), i.e. (signal + noise)^2 > 2 * variance(noise)
-			#pragma omp parallel for shared (V3, Samp3)
-			for (int k = 0; k < nz; k++)
+			if (dInputNSR == 0) // the case of noise-free input images
 			{
-				float x, y;
-				for (int j = 0; j < ny; j++)
-					for (int i = 0; i < nx; i++)
-					{
-						x = Samp3[k][j][i];
-						if (x == 0) { V3[k][j][i] = 0.0f; continue; }
-						if (dInputNSR == 0)
+				#pragma omp parallel for shared (V3, Samp3)
+				for (int k = 0; k < nz; k++)
+				{
+					float x;
+					for (int j = 0; j < ny; j++)
+						for (int i = 0; i < nx; i++)
 						{
-							V3[k][j][i] *= (1 / x);
+							x = Samp3[k][j][i];
+							if (x == 0) V3[k][j][i] = 0.0f;
+							else V3[k][j][i] *= (1 / x);
 						}
-						else
+				}
+			}
+			else // the case of noisy input images
+			{
+				switch (iCTFcorrectionMode)
+				{
+				case 0: // noise filtering in the case of no CTF correction
+				case 2: // noise filtering in the case of 3D TIE-Hom correction later
+				case 4: // noise filtering in the case of 3D CTF correction later
+					// we want abs(V3) >  sqrt(2) * dInputNSR * sqrt(nx * ny) * sqrt(F), i.e. (signal + noise)^2 > 2 * variance(noise)
+					#pragma omp parallel for shared (V3, Samp3)
+					for (int k = 0; k < nz; k++)
+					{
+						float x, y;
+						for (int j = 0; j < ny; j++)
+							for (int i = 0; i < nx; i++)
+							{
+								x = Samp3[k][j][i];
+								if (x == 0) { V3[k][j][i] = 0.0f; continue; }
+								y = abs(V3[k][j][i]) / float(dInputNSR * sqrt(x)); // SNR in this Fourier coefficient
+								V3[k][j][i] *= (1 / x) * (0.5f + atan(100.0f * (y - fTargetSNR)) / PIf); // suppress V3 elements with SNR < TargetSNR
+								//if (y < fTargetSNR) V3[k][j][i] = 0.0f; // "hard" cut-off filter
+							}
+					}
+					break;
+				case 1: // noise filtering in the case of 2D TIE-Hom correction
+					{
+						double norm = sqrt(1.0 + asigma * asigma) * dInputNSR;
+						double fac2 = xar::PI * wl * zoutAver;
+						double dksi2 = fac2 / ((xhi - xlo) * (xhi - xlo));
+						double deta2 = fac2 / ((yhi - ylo) * (yhi - ylo));
+						double dzeta2 = fac2 / ((zhi - zlo) * (zhi - zlo));
+
+						#pragma omp parallel for shared (V3, Samp3)
+						for (int k = 0; k < nz; k++)
 						{
-							y = abs(V3[k][j][i]) / float(dInputNSR * sqrt(x)); // SNR in this Fourier coefficient
-							V3[k][j][i] *= (1 / x) * (0.5f + atan(100.0f * (y - fTargetSNR)) / PIf); // suppress V3 elements with SNR < TargetSNR
-							//if (y < fTargetSNR) V3[k][j][i] = 0.0f; // "hard" cut-off filter
+							int k1, j1, i1;
+							double zeta2, eta2;
+							k1 = k - nzd2;
+							zeta2 = k1 * k1 * dzeta2 - asigma;
+							float x, y, fInputNSR;
+							for (int j = 0; j < ny; j++)
+							{
+								j1 = j - nyd2;
+								eta2 = j1 * j1 * deta2 + zeta2;
+								for (int i = 0; i < nx; i++)
+								{
+									x = Samp3[k][j][i];
+									if (x == 0) { V3[k][j][i] = 0.0f; continue; }
+
+									i1 = i - nxd2;
+									fInputNSR = float(norm * sqrt(x) / (dksi2 * i1 * i1 + eta2)); // dInputNSR is contained in the "norm" term
+
+									y = abs(V3[k][j][i]) / fInputNSR; // SNR in this Fourier coefficient
+									V3[k][j][i] *= (1 / x) * (0.5f + atan(100.0f * (y - fTargetSNR)) / PIf); // suppress V3 elements with SNR < TargetSNR
+									//if (y < fTargetSNR) V3[k][j][i] = 0.0f; // "hard" cut-off filter
+								}
+							}
 						}
 					}
-			}
+					break;
+				case 3: // noise filtering in the case of 2D CTF correction
+					{
+						double omega = atan(asigma);
+						double fac2 = xar::PI * wl * zoutAver;
+						double dksi2 = fac2 / ((xhi - xlo) * (xhi - xlo));
+						double deta2 = fac2 / ((yhi - ylo) * (yhi - ylo));
+						double dzeta2 = fac2 / ((zhi - zlo) * (zhi - zlo));
+
+						#pragma omp parallel for shared (V3, Samp3)
+						for (int k = 0; k < nz; k++)
+						{
+							int j1, i1;
+							int k1 = k - nzd2;
+							float x, y, fInputNSR;
+							double eta2, sintemp, sin2;
+							double zeta2 = k1 * k1 * dzeta2 - omega;
+							for (int j = 0; j < ny; j++)
+							{
+								j1 = j - nyd2;
+								eta2 = j1 * j1 * deta2 + zeta2;
+								for (int i = 0; i < nx; i++)
+								{
+									x = Samp3[k][j][i];
+									if (x == 0) { V3[k][j][i] = 0.0f; continue; }
+
+									i1 = i - nxd2;
+									sintemp = sin(dksi2 * i1 * i1 + eta2);
+									sin2 = sintemp * sintemp;
+									fInputNSR = float(dInputNSR * sqrt(x) * sintemp / (sin2 + epsilon));
+
+									y = abs(V3[k][j][i]) / fInputNSR; // SNR in this Fourier coefficient
+									V3[k][j][i] *= (1 / x) * (0.5f + atan(100.0f * (y - fTargetSNR)) / PIf); // suppress V3 elements with SNR < TargetSNR
+									//if (y < fTargetSNR) V3[k][j][i] = 0.0f; // "hard" cut-off filter
+								}
+							}
+						}
+					}
+					break;
+				}
+			} // end of noisy input images 3D filtration case
 
 			// delete Samp3 matrix to free memory prior to 3D FFT
 			Samp3.Truncate();
@@ -875,15 +966,16 @@ int main(int argc, char* argv[])
 				if (iCTFcorrectionMode == 2)
 				{
 					printf("\nPerforming 3D TIE-Hom correction ...");
-					double alphatemp = 4.0 * PI * asigma / (zoutAver * wl);
-					double normtemp = alphatemp * sqrt(1.0 + asigma * asigma) / asigma;
+					//normalization of the inverse 2D minus-Laplacian here corresponds to the normalization of the CTFcorrection3D() function below
+					double alphatemp = -4.0 * PI * asigma / (zoutAver * wl); // asigma should be negative, so alpha is positive
+					double normtemp = -alphatemp * sqrt(1.0 + asigma * asigma) / asigma;
 					InverseMLaplacian3D(V3, zhi - zlo, yhi - ylo, xhi - ylo, alphatemp, normtemp);
-					// the output(V3) is normalized as delta * 4 * PI * sqrt(1 + sigma ^ 2) / wl
 				}
 				else if (iCTFcorrectionMode == 4)
 				{
 					printf("\nPerforming 3D CTF correction ...");
 					CTFcorrection3D(V3, Wavehead3D(wl, zlo, zhi, ylo, yhi, xlo, xhi), zoutAver, k2maxo, Cs3, Cs5, asigma, epsilon, bESCC);
+					// the output(V3) is normalized here as delta * 4 * PI * sqrt(1 + sigma ^ 2) / wl
 				}
 			}
 
@@ -912,7 +1004,9 @@ int main(int argc, char* argv[])
 
 			// inverse FFT of the FFT[potential or beta] on the Ewald sphere
 			printf("\nAllocating Fftwd3frc object ...");
-			Fftwd3frc fft3f((int)nz, (int)ny, (int)nx, false, true, false); // create an Fftwd3frc object in the Fourier space state
+			if (!fftwf_init_threads())
+				std::runtime_error("Error: multi-threaded initialization of FFTW library failed.");
+			Fftwd3frc fft3f((int)nz, (int)ny, (int)nx, nThreads, false, true, false); // create an Fftwd3frc object in the Fourier space state
 			fft3f.SetComplexXArray3D(V3, true);
 			V3.Truncate(); // free memory
 			printf("\nInverse Fourier transforming the Fourier transform of the 3D distribution of the electrostatic potential or beta ...");
@@ -924,12 +1018,42 @@ int main(int argc, char* argv[])
 			fft3f.GetRealXArray3D(K3out, true);
 			fft3f.Cleanup(); // free memory
 
-			float fnorm = (float)(wl * EE / (2.0 * PI * sqrt(1.0 + asigma * asigma))); // this is the conversion factor for V = 2E delta
-			if (iModality == 1)
+			// compensation for the "reverse cupping" artefact
+			double dtemp = 2.0 / double(nzd2 * nzd2 + nyd2 * nyd2 + nxd2 * nxd2);
+			#pragma omp parallel for
+			for (int k = 0; k < nz; k++)
 			{
-				fnorm *= (float)(asigma / (2.0 * EE)); // this is the conversion factor for beta = sigma delta = sigma * V / (2E)
-				if (iCTFcorrectionMode == 2 || iCTFcorrectionMode == 3) fnorm *= -1;
+				int k1, j1, i1;
+				double zeta2, eta2;
+				k1 = k - nzd2;
+				zeta2 = k1 * k1;
+				for (int j = 0; j < ny; j++)
+				{
+					j1 = j - nyd2;
+					eta2 = j1 * j1 + zeta2;
+					for (int i = 0; i < nx; i++)
+					{
+						i1 = i - nxd2;
+						K3out[k][j][i] *= float(exp(dtemp * (i1 * i1 + eta2)));
+					}
+				}
 			}
+
+			// final normalization of the result
+			// V3 is normalized at this point as delta * 4 * PI * sqrt(1 + sigma ^ 2) * zst / wl - see the explanation that follows:
+			// V3 in the Fourier space was obtained from K2four by 3D gridding (the gridding was self-normalized later by dividing by Samp3).
+			// K2four was normalized as delta * 4 * PI * sqrt(1 + sigma^2) / wl / (xst * yst), the (xst * yst) term was due to 2D DFT.
+			// Indeed, 2D forward DFT produces an extra factor of 1 / (xst * yst), compared to the true 2D Fourier transform in the integral form.
+			// V3 was then 3D inverse DFT transformed. Note that 3D inverse DFT produces an extra factor of 1 / (dksi * deta * dzeta), 
+			// compared to the true inverse 3D Fourier transform in the integral form. Overall, we then have
+			// 1 / (xst * dksi * yst * deta * dzeta) = (xaper / xst) * (yaper / yst) * zaper = nx * ny * zaper. 
+			// Finally, GetRealXArray3D() contains the normalization factor 1 / (nx * ny * nz), and we end up with the extra factor zaper / nz = zst.
+			float fnorm;
+			if (iModality == 0)
+				fnorm = (float)(EE * wl / (2.0 * PI * sqrt(1.0 + asigma * asigma) * zst)); // this is the conversion factor for V = 2E delta
+			if (iModality == 1)
+				fnorm = (float)(asigma * wl / (4.0 * PI * sqrt(1.0 + asigma * asigma) * zst)); // this is the conversion factor for beta = sigma * delta
+				//fnorm = (float)(wl / (4.0 * PI * sqrt(1.0 + asigma * asigma))); // this is the conversion factor for delta
 			K3out *= fnorm;
 
 		} // end of case if imode3DPotential == 0
@@ -1002,7 +1126,7 @@ int main(int argc, char* argv[])
 		{
 			if (bVerboseOutput) start_timeNow = std::chrono::system_clock::now(); // start of inverse 3D FFT time
 
-			Fftwd3frc fft3f((int)nz, (int)ny, (int)nx);
+			Fftwd3frc fft3f((int)nz, (int)ny, (int)nx, nThreads, true, true, false); // create an Fftwd3frc object in the real space state
 
 			if (imodeInvLaplace && imode3DPotential) // in the case !imode3DPotential inverse Laplacian is calculated in the Fourier space
 			{
@@ -1060,6 +1184,7 @@ int main(int argc, char* argv[])
 		}
 
 		// global cleanup of FFTW space (is must not be called from destructors of individual FFTW objects)
+		//fftw_cleanup_threads();
 	}
 	catch (std::runtime_error& E)
 	{

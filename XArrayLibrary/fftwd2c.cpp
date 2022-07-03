@@ -1,14 +1,16 @@
 // Implementation of the fftwd2c class
 
 #include "fftwd2c.h"
+//#include "omp.h"
 //#include <string_view> // for std::swap
 
 
-Fftwd2c::Fftwd2c(int ny1, int nx1, bool bMeasure)
+Fftwd2c::Fftwd2c(int ny1, int nx1, int nThreads, bool bMeasure)
 //! Constructor allocating internal storage and creating "FFT plans"
 {
 	bExtStorage = false;
 	if (ny1 <= 0 || nx1 <= 0) throw std::runtime_error("Error: non-positive array dimension passed to Fftwd2c constructor.");
+	if (nThreads <= 0) throw std::runtime_error("Error: non-positive number of threads in  Fftwd2c constructor.");
 	ny = ny1; nx = nx1;
 	parr = (fftw_complex*)fftw_malloc(sizeof(fftw_complex) * ny * nx);
 	if (parr == nullptr)
@@ -17,12 +19,14 @@ Fftwd2c::Fftwd2c(int ny1, int nx1, bool bMeasure)
 		throw std::runtime_error("Error: failed to allocate memory in Fftwd2c constructor.");
 	}
 	uiflag = bMeasure ? FFTW_MEASURE : FFTW_ESTIMATE;
+	fftw_plan_with_nthreads(nThreads);
 	aplan = fftw_plan_dft_2d(ny, nx, parr, parr, FFTW_FORWARD, uiflag);
 	if (aplan == NULL)
 	{
 		Cleanup();
 		throw std::runtime_error("Error: failed to create forward plan in Fftwd2c constructor.");
 	}
+	fftw_plan_with_nthreads(nThreads);
 	bplan = fftw_plan_dft_2d(ny, nx, parr, parr, FFTW_BACKWARD, uiflag);
 	if (bplan == NULL)
 	{
@@ -32,19 +36,23 @@ Fftwd2c::Fftwd2c(int ny1, int nx1, bool bMeasure)
 }
 
 
-Fftwd2c::Fftwd2c(xar::XArray2D<xar::dcomplex>& xarc2D)
+Fftwd2c::Fftwd2c(xar::XArray2D<xar::dcomplex>& xarc2D, int nThreads, bool bMeasure)
 //! Constructor using external storage and creating "FFT plans"
 {
+	if (nThreads <= 0) throw std::runtime_error("Error: non-positive number of threads in  Fftwd2c constructor.");
 	bExtStorage = true;
 	ny = (int)xarc2D.GetDim1(); nx = (int)xarc2D.GetDim2();
+	if (nx <= 0 || ny <= 0) throw std::runtime_error("Error: non-positive array dimension in  Fftwd2c constructor.");
 	parr = (fftw_complex*)&xarc2D[0][0];
-	uiflag = FFTW_ESTIMATE;
+	uiflag = bMeasure ? FFTW_MEASURE : FFTW_ESTIMATE;
+	fftw_plan_with_nthreads(nThreads);
 	aplan = fftw_plan_dft_2d(ny, nx, parr, parr, FFTW_FORWARD, uiflag);
 	if (aplan == NULL)
 	{
 		Cleanup();
 		throw std::runtime_error("Error: failed to create forward plan in Fftwd2c constructor.");
 	}
+	fftw_plan_with_nthreads(nThreads);
 	bplan = fftw_plan_dft_2d(ny, nx, parr, parr, FFTW_BACKWARD, uiflag);
 	if (bplan == NULL)
 	{
@@ -159,7 +167,7 @@ void Fftwd2c::InverseMLaplacian1(xar::XArray2D<xar::dcomplex>& aaa, double alpha
 // Regularized inverse 2D (-Laplacian) via multiplication of the 2D array by norm / [alpha + 4 * PI^2 * (ksi^2 + eta^2)]
 // alpha is the usual Tikhonov regularization parameter
 // norm is a normalization factor which can be chosen depending on the application
-// NOTE: compared to TIE-Hom, alpha = 4 * PI * sigma / (dz * wl), norm = alpha * sqrt(1 + sigma^2) / sigma = 4 * PI * sqrt(1 + sigma * sigma) / (dz * wl)
+// NOTE: compared to TIE-Hom, alpha = 4 * PI / ((delta / beta) * dz * wl), norm = alpha
 // NOTE!!: this function does NOT do the final inverse FFT, leaving the array in the Fourier space in the unshuffled form
 {
 	if (alpha == 0)

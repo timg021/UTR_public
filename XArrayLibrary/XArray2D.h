@@ -511,18 +511,20 @@ namespace xar
 		if (m_iDim1 != 2 * int(m_iDim1 / 2) || m_iDim2 != 2 * int(m_iDim2 / 2))
 			throw std::runtime_error("XArray2D<T>::Shuffle() should only be applied to arrays with even dimensions");
 
-		index_t jj, nyd2 = m_iDim1 / 2, nxd2 = m_iDim2 / 2;
+		index_t ii, jj, nyd2 = m_iDim1 / 2, nxd2 = m_iDim2 / 2;
 		for (index_t j = 0; j < nyd2; j++)
 		{
+			ii = nxd2;
 			jj = j + nyd2;
 			for (index_t i = 0; i < nxd2; i++)
-				std::swap((*this)[j][i], (*this)[jj][i + nxd2]);
+				std::swap((*this)[j][i], (*this)[jj][ii++]);
 		}
 		for (index_t j = nyd2; j < m_iDim1; j++)
 		{
+			ii = nxd2;
 			jj = j - nyd2;
 			for (index_t i = 0; i < nxd2; i++)
-				std::swap((*this)[j][i], (*this)[jj][i + nxd2]);
+				std::swap((*this)[j][i], (*this)[jj][ii++]);
 		}
 	}
 

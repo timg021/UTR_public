@@ -124,9 +124,6 @@
     <ClInclude Include="..\..\XArrayLibrary\XArray3D.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\fftwlib\fftw3.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="..\..\XArrayLibrary\fftwd3drc.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -164,6 +161,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="UTR.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\fftwlib\fftw3.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

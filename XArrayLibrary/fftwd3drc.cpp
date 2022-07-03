@@ -2,10 +2,12 @@
 
 #include "fftwd3drc.h"
 #include "XA_head3.h"
+#include "omp.h"
 
-Fftwd3drc::Fftwd3drc(int nz1, int ny1, int nx1, bool bRealSpace1, bool bInPlace1, bool bMeasure)
+Fftwd3drc::Fftwd3drc(int nz1, int ny1, int nx1, int nThreads, bool bRealSpace1, bool bInPlace1, bool bMeasure)
 {
 	if (nz1 <= 0 || ny1 <= 0 || nx1 <= 0) throw std::runtime_error("Error: non-positive array dimension passed to Fftwd3drc constructor.");
+	if (nThreads <= 0) throw std::runtime_error("Error: non-positive number of threads in  Fftwd3drc constructor.");
 	nz = nz1; ny = ny1; nx = nx1;
 	bInPlace = bInPlace1;
 	bContainsData = false;
@@ -32,12 +34,14 @@ Fftwd3drc::Fftwd3drc(int nz1, int ny1, int nx1, bool bRealSpace1, bool bInPlace1
 		}
 	}
 	uiflag = bMeasure ? FFTW_MEASURE : FFTW_ESTIMATE;
+	fftw_plan_with_nthreads(nThreads);
 	aplan = fftw_plan_dft_r2c_3d(nz, ny, nx, pin, pout, uiflag);
 	if (aplan == NULL)
 	{
 		Cleanup();
 		throw std::runtime_error("Error: failed to create forward plan in Fftwd3drc constructor.");
 	}
+	fftw_plan_with_nthreads(nThreads);
 	bplan = fftw_plan_dft_c2r_3d(nz, ny, nx, pout, pin, uiflag);
 	if (bplan == NULL)
 	{
@@ -329,10 +333,10 @@ void Fftwd3drc::InverseFFT()
 
 
 void Fftwd3drc::InverseMLaplacian(xar::XArray3D<double>& xa3, double alpha, double norm)
-// Regularized inverse 3D (-Laplacian) via multiplication of the FFT of the 3D array by norm / [alpha + by 4 * PI^2 * (ksi^2 + eta^2 + dzeta^2)]
+// Regularized inverse 3D (-Laplacian) via multiplication of the FFT of the 3D array by norm / [alpha + 4 * PI^2 * (ksi^2 + eta^2 + dzeta^2)]
 // alpha is the usual Tikhonov regularization parameter
 // NOTE: input array is supposed to be represented in the real(!) space
-// NOTE: compared to TIE-Hom, alpha = 4 * PI * sigma / (dz * wl), norm = alpha * sqrt(1 + sigma^2) / sigma = 4 * PI * sqrt(1 + sigma * sigma) / (dz * wl)
+// NOTE: compared to TIE-Hom, alpha = 4 * PI  / ((delta / beta) * dz * wl), norm = alpha
 {
 	if (!bRealSpace)
 		throw std::runtime_error("Fftwd3drc::InverseMLaplacian() cannot be called when Fftwd3drc object is in the Fourier space state");
@@ -364,19 +368,25 @@ void Fftwd3drc::InverseMLaplacian(xar::XArray3D<double>& xa3, double alpha, doub
 	double dksi2 = fact / ((xhi - xlo) * (xhi - xlo));
 	double deta2 = fact / ((yhi - ylo) * (yhi - ylo));
 	double dzeta2 = fact / ((zhi - zlo) * (zhi - zlo));
-	double dtemp, dtemp1, dk2, djk2;
 
 	size_t m = 0;
-	index_t k1, j1, nyd2 = ny / 2, nzd2 = nz / 2, nxc2 = GetNx2();
-	for (index_t k = 0; k < nz; k++)
+	int nyd2 = ny / 2, nzd2 = nz / 2, nxc2 = GetNx2();
+
+	#pragma omp parallel for
+	for (int k = 0; k < nz; k++)
 	{
+		int k1, j1;
+		double dtemp, dtemp1, dk2, djk2;
+
 		k <= nzd2 ? k1 = k : k1 = nz - k;
 		dk2 = k1 * k1 * dzeta2 + alpha;
-		for (index_t j = 0; j < ny; j++)
+
+		for (int j = 0; j < ny; j++)
 		{
 			j <= nyd2 ? j1 = j : j1 = ny - j;
 			djk2 = j1 * j1 * deta2 + dk2;
-			for (index_t i = 0; i < nxc2; i++)
+
+			for (int i = 0; i < nxc2; i++)
 			{
 				dtemp = i * i * dksi2 + djk2;
 				dtemp1 = norm / dtemp;
@@ -398,7 +408,7 @@ void Fftwd3drc::InverseMLaplacian1(double zaper, double yaper, double xaper, dou
 // alpha is the usual Tikhonov regularization parameter
 // 
 // NOTE: input array is supposed to be represented in the Fourier(!) space
-// NOTE: compared to TIE-Hom, alpha = 4 * PI * sigma / (dz * wl), norm = alpha * sqrt(1 + sigma^2) / sigma = 4 * PI * sqrt(1 + sigma * sigma) / (dz * wl)
+// NOTE: compared to TIE-Hom, alpha = 4 * PI / ((delta / beta) * dz * wl), norm = alpha
 {
 	if (!bContainsData)
 		throw std::runtime_error("Fftwd3drc::InverseMLaplacian1() cannot be called when Fftwd3drc object does not contain meaningful data");
@@ -414,19 +424,25 @@ void Fftwd3drc::InverseMLaplacian1(double zaper, double yaper, double xaper, dou
 	double dksi2 = fact / (xaper * xaper);
 	double deta2 = fact / (yaper * yaper);
 	double dzeta2 = fact / (zaper * zaper);
-	double dtemp, dtemp1, dk2, djk2;
 
 	size_t m = 0;
-	index_t k1, j1, nyd2 = ny / 2, nzd2 = nz / 2, nxc2 = GetNx2();
-	for (index_t k = 0; k < nz; k++)
+	int nyd2 = ny / 2, nzd2 = nz / 2, nxc2 = GetNx2();
+
+	#pragma omp parallel for
+	for (int k = 0; k < nz; k++)
 	{
+		int k1, j1;
+		double dtemp, dtemp1, dk2, djk2;
+
 		k <= nzd2 ? k1 = k : k1 = nz - k;
 		dk2 = k1 * k1 * dzeta2 + alpha;
-		for (index_t j = 0; j < ny; j++)
+		
+		for (int j = 0; j < ny; j++)
 		{
 			j <= nyd2 ? j1 = j : j1 = ny - j;
 			djk2 = j1 * j1 * deta2 + dk2;
-			for (index_t i = 0; i < nxc2; i++)
+
+			for (int i = 0; i < nxc2; i++)
 			{
 				dtemp = i * i * dksi2 + djk2;
 				dtemp1 = norm / dtemp;
@@ -511,19 +527,20 @@ void Fftwd3drc::CTFcorrection1(xar::Wavehead3D head3D, double defocdist, double 
 	double fac3 = xar::PI * pow(wl, 3) / 2.0 * Cs3;
 	double fac5 = xar::PI * pow(wl, 5) / 3.0 * Cs5;
 
-	double zeta2, eta2, ksi2, dtemp, zeta2fac2, eta2fac2, ksi2fac2, sintemp, sin2, sinreg, costemp, cos2, cosreg(0), Cstemp(0);
-
 	size_t m = 0;
-	index_t k1, j1, nyd2 = ny / 2, nzd2 = nz / 2, nxc2 = GetNx2();
-	for (index_t k = 0; k < nz; k++)
-	{
-		k <= nzd2 ? k1 = k : k1 = nz - k;
+	int nyd2 = ny / 2, nzd2 = nz / 2, nxc2 = GetNx2();
 
+	#pragma omp parallel for
+	for (int k = 0; k < nz; k++)
+	{
+		int k1, j1;
+		double zeta2, eta2, ksi2, dtemp, zeta2fac2, eta2fac2, ksi2fac2, sintemp, sin2, sinreg, costemp, cos2, cosreg(0), Cstemp(0);
+
+		k <= nzd2 ? k1 = k : k1 = nz - k;
 		zeta2 = dzeta2 * k1 * k1;
 		zeta2fac2 = fac2 * zeta2 - omega;
 
-		//dk2 = k1 * k1 * dzeta2 + alpha;
-		for (index_t j = 0; j < ny; j++)
+		for (int j = 0; j < ny; j++)
 		{
 			j <= nyd2 ? j1 = j : j1 = ny - j;
 			
@@ -531,8 +548,7 @@ void Fftwd3drc::CTFcorrection1(xar::Wavehead3D head3D, double defocdist, double 
 			eta2fac2 = fac2 * eta2 + zeta2fac2;
 			eta2 += zeta2;
 
-			//djk2 = j1 * j1 * deta2 + dk2;
-			for (index_t i = 0; i < nxc2; i++)
+			for (int i = 0; i < nxc2; i++)
 			{
 				ksi2 = dksi2 * i * i;
 				ksi2fac2 = fac2 * ksi2 + eta2fac2;
@@ -595,19 +611,25 @@ void Fftwd3drc::GaussFilter(xar::XArray3D<double>& xa3, double sigma)
 	double dksi2 = fact / ((xhi - xlo) * (xhi - xlo));
 	double deta2 = fact / ((yhi - ylo) * (yhi - ylo));
 	double dzeta2 = fact / ((zhi - zlo) * (zhi - zlo));
-	double dtemp, dk2, djk2;
 
 	size_t m = 0;
-	index_t k1, j1, nyd2 = ny / 2, nzd2 = nz / 2, nxc2 = GetNx2();
-	for (index_t k = 0; k < nz; k++)
+	int nyd2 = ny / 2, nzd2 = nz / 2, nxc2 = GetNx2();
+
+	#pragma omp parallel for
+	for (int k = 0; k < nz; k++)
 	{
+		int k1, j1;
+		double dtemp, dk2, djk2;
+
 		k <= nzd2 ? k1 = k : k1 = nz - k;
 		dk2 = k1 * k1 * dzeta2;
-		for (index_t j = 0; j < ny; j++)
+		
+		for (int j = 0; j < ny; j++)
 		{
 			j <= nyd2 ? j1 = j : j1 = ny - j;
 			djk2 = j1 * j1 * deta2 + dk2;
-			for (index_t i = 0; i < nxc2; i++)
+			
+			for (int i = 0; i < nxc2; i++)
 			{
 				dtemp = exp(-(i * i * dksi2 + djk2));
 				pout[m][0] *= dtemp;

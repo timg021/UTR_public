@@ -1,37 +1,35 @@
-//*****Input parameter file for PhaseRetrieval.exe program*****
+//*****Input parameter file for UHR.exe program*****
 1.Verbose_output_during_execution_Yes(1)_or_No(0): 1
-2.Input_file_with_rotation_angles_and_defocus_distances: DefocusRand180_1_NEW.txt
+2.Input_file_with_rotation_angles_and_defocus_distances: DefocusReg480_1_NEW.txt
 3.Optional_file_with_indexes_and_weights_for_subseries_selection_or_NONE: NONE
-4.Filename_base_of_flat_field_corrected_input_images_in_RAW,_TIFF,_GRD_or_GRC_format: C:\Users\tgureyev\Downloads\Temp\au.grd
+4.Filename_base_of_flat_field_corrected_input_images_in_RAW,_TIFF_or_GRD_format: C:\Users\tgureyev\Downloads\Temp\2145659R_480_proj\p.grd
 5.HeaderLength(bytes)_Endianness(0=little,1=big)_ElementLength(bytes)_(for_RAW_format): 0 0 4
-6.Width_and_height_of_input_images_in_pixels_(lager_images_will_be_trimmed): 512 512
-7.Pixel_size_in_Angstroms: 0.457
-8.Centre_of_rotation_x,_y_and_z_shifts_in_Angstroms: 0 0 0
-9.Input_data_normalization_factors_f1_f2_(input->(input/f1)+f2): 1.0 0.0
-10.Wavelength_in_Angstroms: 0.02507934
-11.Objective_aperture_in_mrad: 40.0
-12.Spherical_aberration_Cs3,_Cs5_in_mm: 0.0 0.0
-13.Absorption_coefficient_(fraction_of_the_real_part): 0.0
-14.Phase_retrieval_method_IWFR(1),_CTFL2(2),_-0.5LogAmp(3),_vCTF(4),_or_sCTF(5): 3
-15.Apply_Ewald_sphere_curvature_correction:_No(0)_or_Yes(1): 0
-16.Save_phase_retrieved_defocused_complex_amplitudes_or_inverse_filter_matrix_in_files_Yes(1)_or_No(0): 0
-17.Maximal_number_of_iterations(IWFR)_or_critical_SNR(sCTF): 200
-18.Minimal_phase_error(IWFR),_regularization_parameter(CTFL2,vCTF,cCTF,sCTF)_or_multiplicative_factor(-0.5LogAmp): 0
-19.Output_defocus_distances_min_and_max_in_Angstroms: -116.0 116.0
-20.Extra_defocus_for_3D_reconstruction_in_Angstroms: 10.0
-21.Enforce_symmetry:_not_apply(0),_distribute_input_orientations(1),_post_apply(2): 0
-22.Input_file_with_rotation_angles_enforcing_symmetry: Defocus8foldSymmetry.txt
-23.Inverse_3D_Laplacian_mode:_not_apply(0)_or_apply(1): 0
-24.Regularization_parameter_for_inverse_3D_Laplacian_filter: 0.0
-25.Low-pass_filter_width_in_Angstroms,_background_subtraction_value_and_lower_threshold_level_in_Volts: 0.0 0.0 -1000000.0
-26.Reprojection_of_3D_potential:_not_apply(0)_or_apply(1): 0
-27.Slice_thickness_for_multislice_in_Angstroms: 1.25
-28.Peak_localization_mode:_not_apply(0)_or_apply(1): 0
-29.Transverse_and_longitudinal_side_lengths_for_peak_localization_in_Angstroms: 0.8 3.2
-20.File_name_base_of_3D_potential_in_TIFF_or_GRD_format: C:\Users\tgureyev\Downloads\Temp\Out\out.grd
-31.Import_and_reprocess_existing_3D_potential_files:_No(0)_or_Yes(1): 0
-32.Folder_name_for_auxiliary_files_output: C:\Users\tgureyev\Downloads\Temp\000temp
-33.Number_of_parallel_threads: 20
+6.Input_data_normalization_factors_f1_f2_(input->(input/f1)+f2): 1.0 0.0
+7.Width_and_height_of_input_images_in_pixels_(images_from_files_can_be_trimmed_or_padded_with_1.0): 2048 626 
+8.Modality_and_units_of_length_UL:_TEM_&_Angstroms(0)_or_X-ray_CT_&_microns(1): 1
+9.Pixel_size_in_UL: 100
+10.Output_defocus_distances_min_and_max_in_UL: -62800.0 62800.0
+11.Centre_of_rotation_x,_y_and_z_shifts_in_UL: 400 0 0 
+12.Wavelength_in_UL: 0.000038745052
+13.Objective_aperture_(half_angle)_in_mrad: 0.0
+14.Spherical_aberration_Cs3,_Cs5_in_mm: 0.0 0.0
+15.Phase_retrieval_method:_none(0),_TIE-Hom-2D(1),_TIE-Hom-3D(2)_CTF-2D(3)_or_CTF-3D(4): 1
+16.Apply_Ewald_sphere_curvature_correction:_No(0)_or_Yes(1): 0
+17.Absorption_coefficient_beta/delta_(NOTE:_n=1+delta+i*beta): 0.1
+18.Average_noise-to-signal_ratio(1/SNR)_in_input_images: 0.2
+19.Tikhonov_regularization_parameter: 0.000001
+20.Enforce_symmetry:_not_apply(0),_distribute_input_orientations(1),_post_apply(2): 0
+21.Input_file_with_rotation_angles_enforcing_symmetry: Defocus8foldSymmetry.txt
+22.Inverse_3D_Laplacian_filter:_not_apply(0)_or_apply(1): 0
+23.Low-pass_filter_width_in_UL,_background_subtraction_value_and_lower_threshold_level: 0.0 0.0 -1.0e+8
+24.Peak_localization_mode:_not_apply(0)_or_apply(1): 0
+25.Transverse_and_longitudinal_side_lengths_for_peak_localization_in_UL: 1.0 1.0
+26.File_name_base_for_reconstructed_3D_potential(TEM)_or_beta(X-ray_CT)_in_TIFF_or_GRD_format:  C:\Users\tgureyev\Downloads\Temp\out.grd
+27.Save_3D_sampling_matrix_in_files_Yes(1)_or_No(0): 0
+28.Import_and_reprocess_existing_3D_potential(TEM)_or_beta(X-ray_CT)_files:_No(0)_or_Yes(1): 0
+29.Folder_name_for_auxiliary_files_output:  C:\Users\tgureyev\Downloads\Temp\000temp\
+30.Number_of_parallel_threads: 1
 //*****
-//Wavelength_in_Angstroms: E=200 keV <-> 0.02507934, E=300 keV <-> 0.01968749
+//Electron wavelength in Angstroms: E=200 keV <-> 0.02507934, E=300 keV <-> 0.01968749
+//X-ray wavelength in microns = 0.001239841662513396 / E(keV) 
 //*****!!!Don't forget to save this file after editing the parameters

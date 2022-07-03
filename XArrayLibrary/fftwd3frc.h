@@ -29,7 +29,12 @@
 
 	NOTE: in contrast to the fftwd3drc class, this class has several template functions, which gives it the ability to work not only on float, 
 	but also on double 3D arrays. This can be useful when there is not enough RAM to create a copy of a double 3D array for FFTW processing
-	
+
+	NOTE: this class uses FFTW libraries with threads
+
+	NOTE: some functions of this class are using omp, so omp needs to be properly initialized before calling these functions
+
+	NOTE: fftw_init_threads() function must be called prior to calls to this class's constructor
 */
 #if !defined FFTWD3FRC_H
 #define FFTWD3FRC_H
@@ -47,10 +52,8 @@ class Fftwd3frc
 	// Structures
 	// Constructors
 public:
-	//! Default constructor
-	//Fftwd3frc() { if (!IsEmpty()) Cleanup(); uiflag = FFTW_ESTIMATE;  }
 	//! Constructor allocating internal storage and creating "FFT plans"
-	Fftwd3frc(int nz1, int ny1, int nx1, bool bRealSpace1 = true, bool bInPlace1 = true, bool bMeasure = false);
+	Fftwd3frc(int nz1, int ny1, int nx1, int nThreads, bool bRealSpace1, bool bInPlace1 = true, bool bMeasure = false);
 
 private:
 	//! Copy constructor (declared private to prohibit copying)

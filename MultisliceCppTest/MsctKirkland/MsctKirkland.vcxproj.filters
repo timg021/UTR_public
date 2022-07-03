@@ -146,10 +146,10 @@
     <ClInclude Include="..\..\TemsimLibrary\pdb.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\fftwlib\fftw3.h">
+    <ClInclude Include="..\..\XArrayLibrary\XA_move2.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\XArrayLibrary\XA_move2.h">
+    <ClInclude Include="..\..\fftwlib\fftw3.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

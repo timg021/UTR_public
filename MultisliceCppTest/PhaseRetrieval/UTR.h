@@ -85,7 +85,7 @@ template <class T> void CTFcorrection3D(xar::XArray3D< std::complex<T> >& xar3D,
 	double fac5 = xar::PI * pow(wl, 5) / 3.0 * Cs5;
 
 	int nxd2 = (int)(nx / 2), nyd2 = (int)(ny / 2), nzd2 = (int)(nz / 2);
-#pragma omp parallel for
+	#pragma omp parallel for
 	for (int k = 0; k < nz; k++)
 	{
 		int k1, j1, i1;
@@ -145,7 +145,7 @@ template <class T> void InverseMLaplacian3D(xar::XArray3D< std::complex<T> >& xa
 // 
 // NOTE: input array is supposed to be represented in the Fourier(!) space in a non-wrapped state(!)
 // NOTE: the array dimensions must be even
-// NOTE: compared to TIE-Hom, alpha = 4 * PI * sigma / (dz * wl), norm = alpha * sqrt(1 + sigma^2) / sigma = 4 * PI * sqrt(1 + sigma * sigma) / (dz * wl)
+// NOTE: compared to TIE-Hom, alpha = 4 * PI / ((delta / beta) * dz * wl), norm = alpha
 {
 	if (alpha <= 0)
 		throw std::runtime_error("InverseMLaplacian3D() cannot be called with alpha <= 0");
@@ -188,8 +188,8 @@ template <class T> void InverseMLaplacian3D(xar::XArray3D< std::complex<T> >& xa
 
 
 template <class T> void CT_3Dgridding(const xar::XArray2D<xar::dcomplex>& K2four, xar::XArray3D< std::complex<T> >& V3, xar::XArray3D<T>& Samp3, 
-	double angleY, double angleZ, double fxlo, double fxst, double fylo, double fyst, double fzlo, double fzst, 
-	xar::dcomplex Fxc, xar::dcomplex Fyc, xar::dcomplex Fzc, double wl, bool bRotCentreShift, bool bESCC)
+	double angleY, double angleZ, T fxlo, T fxst, T fylo, T fyst, T fzlo, T fzst, 
+	std::complex<T> Fxc, std::complex<T> Fyc, std::complex<T> Fzc, double wl, bool bRotCentreShift, bool bESCC)
 {
 	int nx = (int)Samp3.GetDim3();
 	int ny = (int)Samp3.GetDim2();
@@ -198,32 +198,32 @@ template <class T> void CT_3Dgridding(const xar::XArray2D<xar::dcomplex>& K2four
 	int nzd2 = int(nz / 2), nz2 = int(nz) - 2;
 	index_t nxny = (nx * ny);
 	double wl2 = 0.5 * wl;
-	double sinangleY = sin(angleY);
-	double cosangleY = cos(angleY);
-	double sinangleZ = sin(angleZ);
-	double cosangleZ = cos(angleZ);
+	T sinangleY = (T)sin(angleY);
+	T cosangleY = (T)cos(angleY);
+	T sinangleZ = (T)sin(angleZ);
+	T cosangleZ = (T)cos(angleZ);
 
 	// calculate the coordinate illumination angle parameters
 	double xxx;
-	std::vector<double> xxx2(nx);
-	std::vector<double> x_sinangleY(nx), x_cosangleY(nx);
+	std::vector<T> xxx2(nx);
+	std::vector<T> x_sinangleY(nx), x_cosangleY(nx);
 	for (int i = 0; i < nx; i++)
 	{
 		xxx = fxlo + fxst * i;
-		xxx2[i] = -wl2 * xxx * xxx;
-		x_sinangleY[i] = xxx * sinangleY;
-		x_cosangleY[i] = xxx * cosangleY;
+		xxx2[i] = T(-wl2 * xxx * xxx);
+		x_sinangleY[i] = T(xxx * sinangleY);
+		x_cosangleY[i] = T(xxx * cosangleY);
 	}
 
 	double yyy;
-	std::vector<double> yyy2(ny);
-	std::vector<double> y_sinangleZ(ny), y_cosangleZ(ny);
+	std::vector<T> yyy2(ny);
+	std::vector<T> y_sinangleZ(ny), y_cosangleZ(ny);
 	for (int j = 0; j < ny; j++)
 	{
 		yyy = fylo + fyst * j;
-		yyy2[j] = -wl2 * yyy * yyy;
-		y_sinangleZ[j] = yyy * sinangleZ;
-		y_cosangleZ[j] = yyy * cosangleZ;
+		yyy2[j] = T(-wl2 * yyy * yyy);
+		y_sinangleZ[j] = T(yyy * sinangleZ);
+		y_cosangleZ[j] = T(yyy * cosangleZ);
 	}
 
 	// qz rotated values are expressed via qx and qy - see below
@@ -233,11 +233,11 @@ template <class T> void CT_3Dgridding(const xar::XArray2D<xar::dcomplex>& K2four
 	{
 		int ii, jj, nn;
 		xar::index_t nji;
-		double xx, zz, xxx, yyy, zzz;
-		double dx0, dx1, dy0, dy1, dz0, dz1, dxyz;
-		xar::dcomplex cd;
-		float* pFilt3 = &(Samp3[0][0][0]);
-		xar::fcomplex* pV3 = &(V3[0][0][0]);
+		T xx, zz, xxx, yyy, zzz;
+		T dx0, dx1, dy0, dy1, dz0, dz1, dxyz;
+		std::complex<T> cd;
+		T* pFilt3 = &(Samp3[0][0][0]);
+		std::complex<T>* pV3 = &(V3[0][0][0]);
 
 		for (int i = 0; i < nx; i++)
 		{
@@ -248,7 +248,7 @@ template <class T> void CT_3Dgridding(const xar::XArray2D<xar::dcomplex>& K2four
 			zzz = x_sinangleY[i] + zz * cosangleY; // qz coordinate after the rotation around Y'
 			dz1 = (zzz - fzlo) / fzst;
 			nn = (int)floor(dz1); if (nn < 0 || nn > nz2) continue;
-			dz1 -= nn; dz0 = 1.0 - dz1;
+			dz1 -= nn; dz0 = 1.0f - dz1;
 
 			// inverse rotation around Z axis
 			xxx = xx * cosangleZ + y_sinangleZ[j]; // qx coordinate after the rotation around Z
@@ -256,10 +256,10 @@ template <class T> void CT_3Dgridding(const xar::XArray2D<xar::dcomplex>& K2four
 
 			dx1 = (xxx - fxlo) / fxst;
 			ii = (int)floor(dx1); if (ii < 0 || ii > nx2) continue;
-			dx1 -= ii; dx0 = 1.0 - dx1;
+			dx1 -= ii; dx0 = 1.0f - dx1;
 			dy1 = (yyy - fylo) / fyst;
 			jj = (int)floor(dy1); if (jj < 0 || jj > ny2) continue;
-			dy1 -= jj; dy0 = 1.0 - dy1;
+			dy1 -= jj; dy0 = 1.0f - dy1;
 
 			cd = K2four[j][i];
 			// multiply by linear phase factors due to the shifted centre of rotation in the real space
@@ -267,43 +267,43 @@ template <class T> void CT_3Dgridding(const xar::XArray2D<xar::dcomplex>& K2four
 
 			dxyz = dx0 * dy0 * dz0;
 			nji = nn * nxny + jj * nx + ii;
-			*(pFilt3 + nji) += (float)dxyz;
-			*(pV3 + nji) += (xar::fcomplex)(dxyz * cd);
+			*(pFilt3 + nji) += dxyz;
+			*(pV3 + nji) += dxyz * cd;
 
 			dxyz = dx1 * dy0 * dz0;
 			nji += 1;
-			*(pFilt3 + nji) += (float)dxyz;
-			*(pV3 + nji) += (xar::fcomplex)(dxyz * cd);
+			*(pFilt3 + nji) += dxyz;
+			*(pV3 + nji) += dxyz * cd;
 
 			dxyz = dx0 * dy0 * dz1;
 			nji += -1 + nxny;
-			*(pFilt3 + nji) += (float)dxyz;
-			*(pV3 + nji) += (xar::fcomplex)(dxyz * cd);
+			*(pFilt3 + nji) += dxyz;
+			*(pV3 + nji) += dxyz * cd;
 
 			dxyz = dx1 * dy0 * dz1;
 			nji += 1;
-			*(pFilt3 + nji) += (float)dxyz;
-			*(pV3 + nji) += (xar::fcomplex)(dxyz * cd);
+			*(pFilt3 + nji) += dxyz;
+			*(pV3 + nji) += dxyz * cd;
 
 			dxyz = dx0 * dy1 * dz0;
 			nji += -1 - nxny + nx;
-			*(pFilt3 + nji) += (float)dxyz;
-			*(pV3 + nji) += (xar::fcomplex)(dxyz * cd);
+			*(pFilt3 + nji) += dxyz;
+			*(pV3 + nji) += dxyz * cd;
 
 			dxyz = dx1 * dy1 * dz0;
 			nji += 1;
-			*(pFilt3 + nji) += (float)dxyz;
-			*(pV3 + nji) += (xar::fcomplex)(dxyz * cd);
+			*(pFilt3 + nji) += dxyz;
+			*(pV3 + nji) += dxyz * cd;
 
 			dxyz = dx0 * dy1 * dz1;
 			nji += -1 + nxny;
-			*(pFilt3 + nji) += (float)dxyz;
-			*(pV3 + nji) += (xar::fcomplex)(dxyz * cd);
+			*(pFilt3 + nji) += dxyz;
+			*(pV3 + nji) += dxyz * cd;
 
 			dxyz = dx1 * dy1 * dz1;
 			nji += 1;
-			*(pFilt3 + nji) += (float)dxyz;
-			*(pV3 + nji) += (xar::fcomplex)(dxyz * cd);
+			*(pFilt3 + nji) += dxyz;
+			*(pV3 + nji) += dxyz * cd;
 		}
 	} // end of cycle updating the 3D potential or beta at the current rotational orientation "na"
 }

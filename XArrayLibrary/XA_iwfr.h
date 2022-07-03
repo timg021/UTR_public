@@ -988,7 +988,7 @@ template <class T> void XA_IWFR<T>::InvertCTF_DT(const XArray2D<T>& LnIdIin, XAr
 
 	if (NumThreads < 1)
 		throw std::invalid_argument("invalid_argument in XA_IWFR<T>::InvertCTF_DT() (number of threads must be >= 1)");
-	omp_set_num_threads(NumThreads);
+	//omp_set_num_threads(NumThreads); - !!! this should be called earlier in a sginle-thread region of the calling program
 
 	index_t nxd2 = nx / 2;
 	index_t nyd2 = ny / 2;
@@ -1221,7 +1221,7 @@ template <class T> void XA_IWFR<T>::InvertCTF_DT1(const XArray2D<T>& LnIdIin, XA
 
 	if (NumThreads < 1)
 		throw std::invalid_argument("invalid_argument in XA_IWFR<T>::InvertCTF_DT() (number of threads must be >= 1)");
-	omp_set_num_threads(NumThreads);
+	//omp_set_num_threads(NumThreads); - !!! this should be called earlier in a sginle-thread region of the calling program
 
 	index_t nxd2 = nx / 2;
 	index_t nyd2 = ny / 2;
@@ -1279,7 +1279,7 @@ template <class T> void XA_IWFR<T>::InvertCTF_DT1(const XArray2D<T>& LnIdIin, XA
 	double fac3 = PI * pow(wl, 3) / 2.0 * Cs3;
 	double fac5 = PI * pow(wl, 5) / 3.0 * Cs5;
 
-	#pragma omp parallel for
+	//#pragma omp parallel for
 	for (long i = -long(nyd2); i < 0; i++)
 	{
 		index_t k, kj;
@@ -1341,7 +1341,7 @@ template <class T> void XA_IWFR<T>::InvertCTF_DT1(const XArray2D<T>& LnIdIin, XA
 			}
 		}
 	}
-#pragma omp parallel for
+	//#pragma omp parallel for
 	for (long i = 0; i < long(nyd2); i++)
 	{
 		index_t k, kj;

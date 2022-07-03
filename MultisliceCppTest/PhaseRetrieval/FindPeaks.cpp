@@ -39,7 +39,7 @@ int FindPeaks(XArray3D<float> xar3D, double datomsizeXY, double datomsizeZ, int 
 	double R2 = (xR * xR + yR * yR + zR * zR) / 3.0;
 	float K3min = (float)xar3D.Norm(eNormMin);
 
-#pragma omp parallel for shared(xar3D, K3min, xR, yR, zR, R2, xst, yst, zst)
+	#pragma omp parallel for shared(xar3D, K3min, xR, yR, zR, R2, xst, yst, zst)
 	for (int k = 0; k < nz; k++)
 	{
 		double zzz = -zR + zst * k;
@@ -65,7 +65,7 @@ int FindPeaks(XArray3D<float> xar3D, double datomsizeXY, double datomsizeZ, int 
 
 	// search for peaks
 	// NOTE that we exclude one-atomsize-wide vicinity of the outer boundary from the search, as we expect artefacts there
-#pragma omp parallel for shared(xar3D, natom, katom, jatom, iatom, vimax, vjmax, vkmax)
+	#pragma omp parallel for shared(xar3D, natom, katom, jatom, iatom, vimax, vjmax, vkmax)
 	for (int k = katom; k < nz - katom * 2; k += katom)
 	{
 		for (int j = jatom; j < ny - jatom * 2; j += jatom)
@@ -84,7 +84,7 @@ int FindPeaks(XArray3D<float> xar3D, double datomsizeXY, double datomsizeZ, int 
 								kmax = kk; jmax = jj; imax = ii;
 							}
 							else xar3D[kk][jj][ii] = 0.0;
-#pragma omp critical
+				#pragma omp critical
 				if (K3max > 0)
 				{
 					natom++;
@@ -138,7 +138,7 @@ int FindPeaks(XArray3D<float> xar3D, double datomsizeXY, double datomsizeZ, int 
 				occ1.push_back((float)K3maxPair[nn].v);
 				wobble1.push_back(0);
 
-#pragma omp parallel for private(m)
+				#pragma omp parallel for private(m)
 				for (int mm = nn - 1; mm >= 0; mm--)
 				{
 					if (K3maxPair[mm].v != 0.0)

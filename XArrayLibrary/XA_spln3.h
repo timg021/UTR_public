@@ -440,7 +440,7 @@ template <class T> void xar::XArray3DSpln<T>::Rotate1(XArray3D<T>& xaResult3D, d
 template <class T> void xar::XArray3DSpln<T>::Rotate3(XArray3D<T>& xaResult3D, double angleZ, double angleY, double angleZ2, int nThreads, double zc, double yc, double xc, T Backgr) const
 {
 
-	if ( nThreads > 1) omp_set_num_threads(nThreads);
+	//if ( nThreads > 1) omp_set_num_threads(nThreads); // this should be called in the calling program
 
 	// check and enforce default coordinates of the centre of rotation
 	if (zc == -1.1e-11) zc = 0.5 * (m_zlo + m_zhi);

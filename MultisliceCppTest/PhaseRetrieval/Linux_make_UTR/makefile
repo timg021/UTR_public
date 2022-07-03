@@ -19,7 +19,7 @@ DEPS = $(patsubst %,$(XArraydir)/%,$(_DEPS))
 _OBJ =  Ooura_fftsg_flt.o Ooura_fftsg2d_dbl.o Ooura_fftsg_dbl.o XArray.o fftwd2c.o fftwd3drc.o fftwd3frc.o IXAHWave.o XA_ini.o XA_file.o XAHWave.o Ooura_fftsg2d_flt.o FindPeaks.o UTR.o
 OBJ = $(patsubst %,$(ODIR)/%,$(_OBJ))
 
-LIBS= -lm -lfftw3 -lfftw3f
+LIBS= -lm -lpthread -lfftw3 -lfftw3_threads -lfftw3f_threads -lfftw3f -lfftw3_omp -lfftw3f_omp
 
 # $(ODIR)/%.o: %.c $(XarrayDEPS)
 # 	echo $(ODIR)

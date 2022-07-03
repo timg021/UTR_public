@@ -26,7 +26,12 @@
 
 	NOTE: this FFT works in principle for any array dimensions, however: (a) it is the fastest when the dimensions are powers of 2; (b) when a dimension is odd,
 	it can create problems for any "shuffle" like operation, which uses dimension/2 index - see e.g. Get/Set functions
-	
+
+	NOTE: this class uses FFTW libraries with threads
+
+	NOTE: some functions of this class are using omp, so omp needs to be properly initialized before calling these functions
+
+	NOTE: fftw_init_threads() function must be called prior to calls to this class's constructor
 */
 #if !defined FFTWD3DRC_H
 #define FFTWD3DRC_H
@@ -44,10 +49,8 @@ class Fftwd3drc
 	// Structures
 	// Constructors
 public:
-	//! Default constructor
-	//Fftwd3drc() { if (!IsEmpty()) Cleanup(); uiflag = FFTW_ESTIMATE;  }
 	//! Constructor allocating internal storage and creating "FFT plans"
-	Fftwd3drc(int nz1, int ny1, int nx1, bool bRealSpace1 = true, bool bInPlace1 = true, bool bMeasure = false);
+	Fftwd3drc(int nz1, int ny1, int nx1, int nThreads, bool bRealSpace1, bool bInPlace1 = true, bool bMeasure = false);
 
 private:
 	//! Copy constructor (declared private to prohibit copying)
