@@ -80,6 +80,9 @@
     <ClCompile Include="FindPeaks.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\..\XArray_tests\XArrayLibrary\fftwd2fc.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\XArrayLibrary\IXAHWave.h">
@@ -164,6 +167,12 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\..\fftwlib\fftw3.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\XArray_tests\MultisliceCppTest\PhaseRetrieval\FindPeaks.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\XArray_tests\XArrayLibrary\fftwd2fc.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

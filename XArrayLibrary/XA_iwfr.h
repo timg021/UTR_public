@@ -21,6 +21,7 @@
 #include "XA_spln2.h"
 #include "XA_fft2.h"
 #include "fftwd2c.h"
+#include "fftwd2fc.h"
 #include <omp.h>
 
 namespace xar
@@ -109,6 +110,8 @@ namespace xar
 		void InvertCTF_DT(const XArray2D<T>& LnIdIin, XArray2D<std::complex<T> >& cout, double defocdist, double Z1mZ2d2, double phiA, double q2max, double Cs3, double Cs5, double sigma, double alpha, bool bESCC, int NumThreads);
 		//! Inverts symmetrised CTF on the Ewald sphere for a pure phase object using FFTW library
 		void InvertCTF_DT1(const XArray2D<T>& LnIdIin, XArray2D<std::complex<T> >& camp, Fftwd2c& fftw2D, double defocdist, double Z1mZ2d2, double phiA, double q2max, double Cs3, double Cs5, double sigma, double alpha, bool bESCC, int NumThreads);
+		//! Inverts symmetrised CTF on the Ewald sphere for a pure phase object using FFTWf (single-precision) library
+		void InvertCTF_DT2(const XArray2D<T>& LnIdIin, XArray2D<std::complex<T> >& camp, Fftwd2fc& xafft, double defocdist, double Z1mZ2d2, double phiA, double q2max, double Cs3, double Cs5, double sigma, double alpha, bool bESCC, int NumThreads);
 
 	// Overridables
 	public:
@@ -954,9 +957,9 @@ template <class T> void XA_IWFR<T>::ForwardPhaseCTF(XArray2D<T>& pha0, double de
 	pha0 += T(1.0);
 }
 
-//! Inverts symmetrised CTF on the Ewald sphere for a pure phase object
+//! Inverts symmetrised CTF on the Ewald sphere for a monomoprphous object using Ooura FFT library
 // LnIdIin - ln(I/I_in), where I is the defocused image
-// cout - output solution in the form of 3D FFT of  delta * [4 * PI * sqrt(1 + sigma^2)] / wl, on the Ewald sphere, in the "unshuffled form"
+// cout - output solution in the form of 3D FFT of  delta * [4 * PI * sqrt(1 + sigma^2)] / wl, on the Ewald sphere in the Fourier space, in the "unshuffled form"
 // defocdist - defocus distance
 // Z1mZ2d2 astigmatism parameter(dblDistanceX - dblDistanceY) / 2 (in the same units as used in the Wavehead2D)
 // phiA astigmatism angle(with the X axis, counterclockwise) (in radians)
@@ -1180,9 +1183,9 @@ template <class T> void XA_IWFR<T>::InvertCTF_DT(const XArray2D<T>& LnIdIin, XAr
 	xafft1.Shuffle();
 }
 
-//! Inverts symmetrised CTF on the Ewald sphere for a pure phase object using FFTW library
+//! Inverts symmetrised CTF on the Ewald sphere for a monomorpous object using FFTW library
 // LnIdIin - ln(I/I_in), where I is the defocused image
-// camp - output solution in the form of 3D FFT of  delta * [4 * PI * sqrt(1 + sigma^2)] / wl, on the Ewald sphere, in the "unshuffled form"
+// camp - output solution in the form of 3D FFT of  delta * [4 * PI * sqrt(1 + sigma^2)] / wl, on the Ewald sphere in the Fourier space, in the "unshuffled form"
 // xafft - reference to an externally created fftw2D object with correct nx and ny dimensions
 // defocdist - defocus distance
 // Z1mZ2d2 astigmatism parameter(dblDistanceX - dblDistanceY) / 2 (in the same units as used in the Wavehead2D)
@@ -1199,12 +1202,8 @@ template <class T> void XA_IWFR<T>::InvertCTF_DT(const XArray2D<T>& LnIdIin, XAr
 //       (b) InvertCTF_DT1 allows any even input array dimensions, rather than only integer powers of 2; 
 template <class T> void XA_IWFR<T>::InvertCTF_DT1(const XArray2D<T>& LnIdIin, XArray2D<std::complex<T> >& camp, Fftwd2c& xafft, double defocdist, double Z1mZ2d2, double phiA, double q2max, double Cs3, double Cs5, double sigma, double alpha, bool bESCC, int NumThreads)
 {
-	// this function will compile only for T = double for now, because of my implementation of the FFTW wrapper in fftwd2c.h
-	// this is a silly temporary solution, of course, since this function should not even compile for T != double, in principle
-	if (GetValuetype() != eXADouble) throw std::invalid_argument("invalid_argument in XA_IWFR<T>::InvertCTF_DT1() (T is not double)");
-
 	if (LnIdIin.GetDim1() != xafft.GetDim1() || LnIdIin.GetDim2() != xafft.GetDim2())
-		throw std::invalid_argument("invalid_argument in XA_IWFR<T>::InvertCTF_DT() (input 2D array and Fftwd2c object have different dimensions)");
+		throw std::invalid_argument("invalid_argument in XA_IWFR<T>::InvertCTF_DT1() (input 2D array and Fftwd2c object have different dimensions)");
 
 	bool bAper(q2max > 0);
 
@@ -1217,10 +1216,10 @@ template <class T> void XA_IWFR<T>::InvertCTF_DT1(const XArray2D<T>& LnIdIin, XA
 
 	// check that the input array dimensions are even (FFTW works for odd dimensions as well, but my Shuffle() type routines require even dimensions)
 	if (nx != 2 * int(nx / 2) || ny != 2 * int(ny / 2))
-		throw std::invalid_argument("input array dimensions must be even in XA_IWFR<T>::InvertCTF_DT()");
+		throw std::invalid_argument("input array dimensions must be even in XA_IWFR<T>::InvertCTF_DT1()");
 
 	if (NumThreads < 1)
-		throw std::invalid_argument("invalid_argument in XA_IWFR<T>::InvertCTF_DT() (number of threads must be >= 1)");
+		throw std::invalid_argument("invalid_argument in XA_IWFR<T>::InvertCTF_DT1() (number of threads must be >= 1)");
 	//omp_set_num_threads(NumThreads); - !!! this should be called earlier in a sginle-thread region of the calling program
 
 	index_t nxd2 = nx / 2;
@@ -1249,7 +1248,7 @@ template <class T> void XA_IWFR<T>::InvertCTF_DT1(const XArray2D<T>& LnIdIin, XA
 	//  Nyquist frequency (spectral radius) of U0 = srad*wl
 	double srad = sqrt(0.25 / xst2 + 0.25 / yst2);
 	if (srad * wl > 1.0)
-		throw std::runtime_error("runtime_error in XA_IWFR<T>::InvertCTF_DT() (evanescent waves present)");
+		throw std::runtime_error("runtime_error in XA_IWFR<T>::InvertCTF_DT1() (evanescent waves present)");
 
 	//********* Fourier transforming initial amplitude
 	camp = MakeComplex(LnIdIin, T(0), false);
@@ -1407,6 +1406,231 @@ template <class T> void XA_IWFR<T>::InvertCTF_DT1(const XArray2D<T>& LnIdIin, XA
 
 	camp.Shuffle();
 }
+
+//! Inverts symmetrised CTF on the Ewald sphere for a monomorpous object using FFTWf (single-precision) library
+// LnIdIin - ln(I/I_in), where I is the defocused image
+// camp - output solution in the form of 3D FFT of  delta * [4 * PI * sqrt(1 + sigma^2)] / wl, on the Ewald sphere in the Fourier space, in the "unshuffled form"
+// xafftf - reference to an externally created fftw2Df object with correct nx and ny dimensions
+// defocdist - defocus distance
+// Z1mZ2d2 astigmatism parameter(dblDistanceX - dblDistanceY) / 2 (in the same units as used in the Wavehead2D)
+// phiA astigmatism angle(with the X axis, counterclockwise) (in radians)
+// q2max - maximum Fourier frequency (bandpass)
+// Cs3 - third spherical aberration
+// Cs5 - fifth spherical aberration
+// sigma - beta to delta ratio (1 / gamma), it is equal to zero for pure phase objects
+// alpha - Tikhonov regularization parameter
+// bESCC - if true - Ewald sphere curvature correction is applied, if false - flat Ewald sphere is simulated
+//
+// NOTE: if alpha<=0 is given in the function call, we actually use alpha = 0.1 times the minimal non-zero CTF^4 - see code below.
+// NOTE: differences with InvertCTF_DT: (a) InvertCTF_DT1 uses FFTW library instead of Ooura; 
+//       (b) InvertCTF_DT1 allows any even input array dimensions, rather than only integer powers of 2; 
+template <class T> void XA_IWFR<T>::InvertCTF_DT2(const XArray2D<T>& LnIdIin, XArray2D<std::complex<T> >& camp, Fftwd2fc& xafftf, double defocdist, double Z1mZ2d2, double phiA, double q2max, double Cs3, double Cs5, double sigma, double alpha, bool bESCC, int NumThreads)
+{
+	if (LnIdIin.GetDim1() != xafftf.GetDim1() || LnIdIin.GetDim2() != xafftf.GetDim2())
+		throw std::invalid_argument("invalid_argument in XA_IWFR<T>::InvertCTF_DT2() (input 2D array and Fftwd2c object have different dimensions)");
+
+	bool bAper(q2max > 0);
+
+	std::unique_ptr<IXAHead> pHead(nullptr);
+	pHead.reset(LnIdIin.GetHeadPtr()->Clone());
+	const IXAHWave2D* ph2 = GetIXAHWave2D(LnIdIin);
+	ph2->Validate();
+	index_t ny = LnIdIin.GetDim1();
+	index_t nx = LnIdIin.GetDim2();
+
+	// check that the input array dimensions are even (FFTW works for odd dimensions as well, but my Shuffle() type routines require even dimensions)
+	if (nx != 2 * int(nx / 2) || ny != 2 * int(ny / 2))
+		throw std::invalid_argument("input array dimensions must be even in XA_IWFR<T>::InvertCTF_DT2()");
+
+	if (NumThreads < 1)
+		throw std::invalid_argument("invalid_argument in XA_IWFR<T>::InvertCTF_DT2() (number of threads must be >= 1)");
+	//omp_set_num_threads(NumThreads); - !!! this should be called earlier in a sginle-thread region of the calling program
+
+	index_t nxd2 = nx / 2;
+	index_t nyd2 = ny / 2;
+	index_t nx2 = nx * 2;
+	index_t ny2 = ny * 2;
+	index_t nxy = nx * ny;
+	index_t nxy2 = nxy * 2;
+
+	double wl = ph2->GetWl();
+	double xlo = ph2->GetXlo();
+	double xhi = ph2->GetXhi();
+	double xst = ph2->GetXStep(nx);
+	double ylo = ph2->GetYlo();
+	double yhi = ph2->GetYhi();
+	double yst = ph2->GetYStep(ny);
+	double xap = abs(xhi - xlo);
+	double xap2 = (xhi - xlo) * (xhi - xlo);
+	double yap = abs(yhi - ylo);
+	double yap2 = (yhi - ylo) * (yhi - ylo);
+	double xst2 = xst * xst;
+	double yst2 = yst * yst;
+
+	double omega = atan(sigma);
+
+	//  Nyquist frequency (spectral radius) of U0 = srad*wl
+	double srad = sqrt(0.25 / xst2 + 0.25 / yst2);
+	if (srad * wl > 1.0)
+		throw std::runtime_error("runtime_error in XA_IWFR<T>::InvertCTF_DT() (evanescent waves present)");
+
+	//********* Fourier transforming initial amplitude
+	camp = MakeComplex(LnIdIin, T(0), false);
+	camp.Shuffle();
+	xafftf.ForwardFFT(camp); // we re-use the same FFTW plan for multiple arrays of the same dimensions and perform in-place FFT on these "external" arrays
+	T* u = reinterpret_cast<T*>(&(camp.front()));
+
+	//********* Divide F[u] by the CTF
+	bool bC35((Cs3 != 0) || (Cs5 != 0));
+	double dcsi = 1.0 / xap;
+	double dcsi2 = 1.0 / xap2;
+	double deta = 1.0 / yap;
+	double deta2 = 1.0 / yap2;
+
+	double fac2 = PI * wl * defocdist;
+	if (alpha <= 0) alpha = 0.1 * pow(abs(fac2) * std::min(dcsi2, deta2), 2);
+
+	double Z1 = defocdist + Z1mZ2d2;
+	double Z2 = defocdist - Z1mZ2d2;
+	double cosphiA = cos(phiA);
+	double sinphiA = sin(phiA);
+	double sin2phiA = 2.0 * sinphiA * cosphiA;
+	double fac2x = PI * wl * (Z1 * cosphiA * cosphiA + Z2 * sinphiA * sinphiA);
+	double fac2y = PI * wl * (Z2 * cosphiA * cosphiA + Z1 * sinphiA * sinphiA);
+	double facxy = PI * wl * Z1mZ2d2 * sin2phiA;
+	facxy = facxy * deta * dcsi;
+	double fac3 = PI * pow(wl, 3) / 2.0 * Cs3;
+	double fac5 = PI * pow(wl, 5) / 3.0 * Cs5;
+
+	//#pragma omp parallel for
+	for (long i = -long(nyd2); i < 0; i++)
+	{
+		index_t k, kj;
+		double eta2, csi2, q2;
+		double etafacxy, eta2fac2y, fac2a, dtemp, sintemp, sin2, costemp, cos2, Cstemp(0);
+		T sinreg, cosreg(0), ttemp;
+
+		kj = nxy2 + nx2 * i + nx2;
+		etafacxy = facxy * double(i);
+		eta2 = deta2 * i * i;
+		eta2fac2y = eta2 * fac2y - omega;
+		for (long j = -long(nxd2); j < 0; j++)
+		{
+			k = kj + 2 * j;
+			csi2 = dcsi2 * j * j;
+			fac2a = eta2fac2y + csi2 * fac2x + etafacxy * double(j);
+			q2 = csi2 + eta2;
+			if (!bAper || q2 < q2max)
+			{
+				if (bC35) Cstemp = fac3 * q2 * q2 + fac5 * pow(q2, 3);
+				dtemp = fac2a + Cstemp;
+				sintemp = sin(dtemp);
+				sin2 = sintemp * sintemp;
+				sinreg = T(sintemp / (sin2 + alpha));
+				if (bESCC)
+				{
+					costemp = cos(dtemp);
+					cos2 = costemp * costemp;
+					cosreg = T(costemp / (cos2 + alpha));
+				}
+				ttemp = u[k] * sinreg + u[k + 1] * cosreg;
+				u[k + 1] = u[k + 1] * sinreg - u[k] * cosreg;
+				u[k] = ttemp;
+			}
+		}
+		kj = nxy2 + nx2 * i;
+		for (long j = 0; j < long(nxd2); j++)
+		{
+			k = kj + 2 * j;
+			csi2 = dcsi2 * j * j;
+			fac2a = eta2fac2y + csi2 * fac2x + etafacxy * double(j);
+			q2 = csi2 + eta2;
+			if (!bAper || q2 < q2max)
+			{
+				if (bC35) Cstemp = fac3 * q2 * q2 + fac5 * pow(q2, 3);
+				dtemp = fac2a + Cstemp;
+				sintemp = sin(dtemp);
+				sin2 = sintemp * sintemp;
+				sinreg = T(sintemp / (sin2 + alpha));
+				if (bESCC)
+				{
+					costemp = cos(dtemp);
+					cos2 = costemp * costemp;
+					cosreg = T(costemp / (cos2 + alpha));
+				}
+				ttemp = u[k] * sinreg + u[k + 1] * cosreg;
+				u[k + 1] = u[k + 1] * sinreg - u[k] * cosreg;
+				u[k] = ttemp;
+			}
+		}
+	}
+	//#pragma omp parallel for
+	for (long i = 0; i < long(nyd2); i++)
+	{
+		index_t k, kj;
+		double eta2, csi2, q2;
+		double etafacxy, eta2fac2y, fac2a, dtemp, sintemp, sin2, costemp, cos2, Cstemp(0);
+		T sinreg, cosreg(0), ttemp;
+
+		kj = nx2 * i + nx2;
+		etafacxy = facxy * double(i);
+		eta2 = deta2 * i * i;
+		eta2fac2y = eta2 * fac2y - omega;
+		for (long j = -long(nxd2); j < 0; j++)
+		{
+			k = kj + 2 * j;
+			csi2 = dcsi2 * j * j;
+			fac2a = eta2fac2y + csi2 * fac2x + etafacxy * double(j);
+			q2 = csi2 + eta2;
+			if (!bAper || q2 < q2max)
+			{
+				if (bC35) Cstemp = fac3 * q2 * q2 + fac5 * pow(q2, 3);
+				dtemp = fac2a + Cstemp;
+				sintemp = sin(dtemp);
+				sin2 = sintemp * sintemp;
+				sinreg = T(sintemp / (sin2 + alpha));
+				if (bESCC)
+				{
+					costemp = cos(dtemp);
+					cos2 = costemp * costemp;
+					cosreg = T(costemp / (cos2 + alpha));
+				}
+				ttemp = u[k] * sinreg + u[k + 1] * cosreg;
+				u[k + 1] = u[k + 1] * sinreg - u[k] * cosreg;
+				u[k] = ttemp;
+			}
+		}
+		kj = nx2 * i;
+		for (long j = 0; j < long(nxd2); j++)
+		{
+			k = kj + 2 * j;
+			k = kj + 2 * j;
+			csi2 = dcsi2 * j * j;
+			fac2a = eta2fac2y + csi2 * fac2x + etafacxy * double(j);
+			q2 = csi2 + eta2;
+			if (!bAper || q2 < q2max)
+			{
+				if (bC35) Cstemp = fac3 * q2 * q2 + fac5 * pow(q2, 3);
+				dtemp = fac2a + Cstemp;
+				sintemp = sin(dtemp);
+				sin2 = sintemp * sintemp;
+				sinreg = T(sintemp / (sin2 + alpha));
+				if (bESCC)
+				{
+					costemp = cos(dtemp);
+					cos2 = costemp * costemp;
+					cosreg = T(costemp / (cos2 + alpha));
+				}
+				ttemp = u[k] * sinreg + u[k + 1] * cosreg;
+				u[k + 1] = u[k + 1] * sinreg - u[k] * cosreg;
+				u[k] = ttemp;
+			}
+		}
+	}
+
+	camp.Shuffle();
+}
+
 
 } // namespace xar closed
 

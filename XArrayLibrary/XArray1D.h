@@ -71,6 +71,8 @@ namespace xar
 		explicit XArray1D(index_t NumPoints,  T tVal = T()) : XArray<T>(NumPoints, tVal) {} 
 		//! Promotion from vector
 		explicit XArray1D(const vector<T>& rvector) : XArray<T>(rvector) {}
+		//! Move promotion from vector
+		XArray1D(vector<T>&& rvector) : XArray<T>(std::move(rvector)) {}
 		//! Construction from a raw memory buffer
 		XArray1D(T* ptBufBegin, T* ptBufEnd) : XArray<T>(ptBufBegin, ptBufEnd) {} 
 		//! Copy constructor

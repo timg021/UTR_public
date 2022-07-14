@@ -78,7 +78,8 @@ names.
 
 In the above example, Parameter 1 contains the name of a "test" atomic structure file in 
 PDB (https://en.wikipedia.org/wiki/Protein_Data_Bank_(file_format), Vesta XYZ (https://jp-minerals.org/vesta/en/) or
-Kirkland XYZ (35. E. J. Kirkland, Advanced Computing in Electron Microscopy, second edition, Springer, New York, 2010) format. 
+Kirkland XYZ format (E. J. Kirkland, Advanced Computing in Electron Microscopy, second edition, Springer, New York, 2010)
+(see also https://github.com/jhgorse/kirkland/blob/master/temsim/slicelib.cpp). 
 This input file must be present in the same folder where Pdb-compare.exe is started from, or, 
 alternatively, the filename can include a fully specified pathname (OS specific). 
 
@@ -105,7 +106,7 @@ the distance between them must be smaller than this distance.
 
 Parameter 7 can be equal to 0, 1 or 2. "0" means that the output is not sorted, "1" causes the output to be sorted
 by ascending order of z coordinate, "2" sorts the output by distances between the matched test and reference atoms 
-in the ascending order.
+in ascending order.
 
 Parameter 8 contains a switch for using of a more accurate, but potentially very slow, Hungarian matching algorithm.
 "0" means don't use Hungarian algorithm,

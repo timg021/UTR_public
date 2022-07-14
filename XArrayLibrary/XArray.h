@@ -83,9 +83,7 @@ namespace xar
 		 //! Promotion from vector
 		explicit XArray(const vector<T>& rvector) : vector<T>(rvector), m_pHead(0) { GetValuetype(); }
 		//! Move promotion from vector
-		explicit XArray(vector<T>&& rvector) : vector<T>(rvector), m_pHead(0) { GetValuetype(); }
-		//! Construction from a raw memory buffer
-		XArray(T* ptBufBegin, T* ptBufEnd) : vector<T>(ptBufBegin, ptBufEnd), m_pHead(0) { GetValuetype(); } 
+		explicit XArray(vector<T>&& rvector) : vector<T>(std::move(rvector)), m_pHead(0) { GetValuetype(); }
 		 //! Copy constructor
 		XArray(const XArray<T>& rXArray) : vector<T>(rXArray), m_pHead(rXArray.m_pHead ? rXArray.m_pHead->Clone() : 0) {}
 		//! Move constructor

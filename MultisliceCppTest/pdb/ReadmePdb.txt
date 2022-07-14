@@ -57,11 +57,11 @@ Here is a typical example of a valid Pdb.txt parameter file.
 6.Desired_rotation_angle_around_y'_axis_in_degrees: 60.0
 7.Desired_rotation_angle_around_z"_axis_in_degrees: -45.0
 8.Centre_structure_in_the_miniball_(1)_or_do_not_shift_(0): 1
-8.Maximum_distance_in_Angstroms_to_remove_duplicates: 0.5
-9.Sort_0=no_sort_1=increasing_z_2=decreasing_occupancy: 0
-10.Output_file_name: ASP_NEW_Vesta.xyz
-11.Out_file_type_(see_below): 1
-12.Free-form_1st_line_in_output_file: ASP_test
+9.Maximum_distance_in_Angstroms_to_remove_duplicates: 0.5
+10.Sort_0=no_sort_1=increasing_z_2=decreasing_occupancy: 0
+11.Output_file_name: ASP_NEW_Vesta.xyz
+12.Out_file_type_(see_below): 1
+13.Free-form_1st_line_in_output_file: ASP_test
 
 //Input parameter file for pdb.exe program
 //1st parameter contains input file name (standard PDB file or XYZ file produced by Vesta).
@@ -98,7 +98,8 @@ names.
 
 In the above example, Parameter 1 contains the name of an "atomic structure" file in 
 PDB (https://en.wikipedia.org/wiki/Protein_Data_Bank_(file_format), Vesta XYZ (https://jp-minerals.org/vesta/en/),
-Kirkland XYZ (35. E. J. Kirkland, Advanced Computing in Electron Microscopy, second edition, Springer, New York, 2010) format,
+Kirkland XYZ (E. J. Kirkland, Advanced Computing in Electron Microscopy, second edition, Springer, New York, 2010) format 
+(see also https://github.com/jhgorse/kirkland/blob/master/temsim/slicelib.cpp),
 or a text file with orientations/defocuses. In the latter case (text) file, the filename must have either ".txt" or
 ".RELION" filename extension, and the corresponding file must be in the format used in MsctKirkland and PhaseRetrieval programs
 for storing image orientations and defocuses. This file may have one
@@ -189,14 +190,15 @@ atoms located closer than this distance to a given atom). If this distance is ne
 Parameter 10 can be equal to 0, 1 or 2.
 "0" corresponds to sorting of atoms in the output file according to the decreasing atomic numbers.
 "1" corresponds to sorting of atoms in the output file according to the increasing z coordinates.
-"2" corresponds to sorting of atoms in the output file according to the increasing values in the occupancy column.
+"2" corresponds to sorting of atoms in the output file according to the decreasing values in the occupancy column.
 
 Parameter 11 contains the name of the output file.
 
 Parameter 12 can be equal to 0, 1 or 2.
 "0" corresponds to muSTEM XTL output file format (http://tcmp.ph.unimelb.edu.au/mustem/dist/muSTEM_v5.0_manual.pdf). 
-"1" corresponds to Vesta XYZ file output format.
-"2" corresponds to Kirkland XYZ output file format.
+"1" corresponds to Vesta XYZ file output format (https://jp-minerals.org/vesta/en/).
+"2" corresponds to Kirkland XYZ output file format (E. J. Kirkland, Advanced Computing in Electron Microscopy,
+second edition, Springer, New York, 2010) (see also https://github.com/jhgorse/kirkland/blob/master/temsim/slicelib.cpp).
 Note that the optional column with RMS amplitudes of atomic vibrations is not written out. It can be added later
 e.g. by editing the output file in Excel.
 

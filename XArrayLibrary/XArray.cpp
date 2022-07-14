@@ -1270,7 +1270,8 @@ CArg(C, A);
 //
 namespace xar
 {
-
+	
+	template class XArray<long>;
 	template class XArray<float>;
 	template class XArray<double>; 
 	template class XArray<fcomplex>; 

@@ -7,10 +7,12 @@
 #include "XArray3D.h"
 #include "XA_data.h"
 
+#include "FindPeaks.h"
+
 using namespace xar;
 
-int FindPeaks(XArray3D<float> xar3D, double datomsizeXY, double datomsizeZ, int natommax, string XYZfilename)
-// finds peaks (maximums) in the distribution xar3D, with no more than 1 peak per parallelepiped with dimensions (datomsizeXY x datomsizeZ)
+int FindPeaks(XArray3D<float>& xar3D, double datomsizeXY, double datomsizeZ, int natommax, string XYZfilename)
+// finds peaks (maximums) in the distribution xar3D, with no more than 1 peak per parallelepiped with dimensions (datomsizeXY x datomsizeXY x datomsizeZ)
 // natommax - max number of peaks to be saved
 // XYZfilename - name of a file for saving the found peaks in the Kirkland's XYZ format
 {
@@ -27,8 +29,8 @@ int FindPeaks(XArray3D<float> xar3D, double datomsizeXY, double datomsizeZ, int 
 	double yhi = phead3D->GetYhi();
 	double zhi = phead3D->GetZhi();
 	double xst = phead3D->GetXStep(nx);
-	double yst = phead3D->GetXStep(ny);
-	double zst = phead3D->GetXStep(nz);
+	double yst = phead3D->GetYStep(ny);
+	double zst = phead3D->GetZStep(nz);
 
 	// finding atomic positions
 
@@ -117,17 +119,16 @@ int FindPeaks(XArray3D<float> xar3D, double datomsizeXY, double datomsizeZ, int 
 		std::qsort(&K3maxPair[0], (size_t)natom, sizeof(Pair2), Pair2comp);
 
 		// exclude the smaller one from each pair of peak positions that are located closer than datomsize to each other (e.g. in adjacent corners of neigbouring cubes)
-		double datomsize2 = datomsizeXY * datomsizeXY;
+		float datomsizeXY2 = float(datomsizeXY * datomsizeXY);
 		vector<int> vimax1, vjmax1, vkmax1, Znum1;
 		vector<float> xa1, ya1, za1, occ1, wobble1;
 		printf("\nEliminating adjacent peaks in the reconstructed 3D distribution ...");
-		int n, m;
 		for (int nn = natom - 1; nn >= 0; nn--)
 		{
 			if (K3maxPair[nn].v != 0.0)
 			{
 				// we can already count this maximum in, as it is guaranteed to be larger than all subsequent ones
-				n = K3maxPair[nn].n;
+				int n = K3maxPair[nn].n, m;
 				Znum1.push_back(6);
 				vimax1.push_back(vimax[n]);
 				vjmax1.push_back(vjmax[n]);
@@ -138,13 +139,12 @@ int FindPeaks(XArray3D<float> xar3D, double datomsizeXY, double datomsizeZ, int 
 				occ1.push_back((float)K3maxPair[nn].v);
 				wobble1.push_back(0);
 
-				#pragma omp parallel for private(m)
 				for (int mm = nn - 1; mm >= 0; mm--)
 				{
 					if (K3maxPair[mm].v != 0.0)
 					{
 						m = K3maxPair[mm].n;
-						if ((xa[n] - xa[m]) * (xa[n] - xa[m]) + (ya[n] - ya[m]) * (ya[n] - ya[m]) + (za[n] - za[m]) * (za[n] - za[m]) < datomsize2)
+						if ((xa[n] - xa[m]) * (xa[n] - xa[m]) + (ya[n] - ya[m]) * (ya[n] - ya[m]) + (za[n] - za[m]) * (za[n] - za[m]) < datomsizeXY2)
 							K3maxPair[mm].v = 0.0;
 					}
 				}

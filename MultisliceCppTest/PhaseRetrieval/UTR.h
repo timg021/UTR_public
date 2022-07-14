@@ -12,8 +12,6 @@ constexpr int natommax(500000); // maximum number of atomic positions that can b
 constexpr double dTargetSNR = 1.414213562373; // sqrt(2) targeted cut-off SNR in Fourier coefficients
 constexpr float fTargetSNR = float(dTargetSNR); 
 
-int FindPeaks(xar::XArray3D<float> K3out, double datomsizeXY, double datomsizeZ, int natommax, std::string XYZfilename); // this function is defined in FindPeaks.cpp
-
 template <class T> void CTFcorrection3D(xar::XArray3D< std::complex<T> >& xar3D, xar::Wavehead3D head3D, double defocdist, double q2max, double Cs3, double Cs5, double sigma, double epsilon, bool bESCC)
 // Performs 3D CTF correction with optional Ewald sphere correction
 // 
@@ -187,16 +185,16 @@ template <class T> void InverseMLaplacian3D(xar::XArray3D< std::complex<T> >& xa
 }
 
 
-template <class T> void CT_3Dgridding(const xar::XArray2D<xar::dcomplex>& K2four, xar::XArray3D< std::complex<T> >& V3, xar::XArray3D<T>& Samp3, 
+template <class T> void CT_3Dgridding(const xar::XArray2D<xar::fcomplex>& K2four, xar::XArray3D< std::complex<T> >& V3, xar::XArray3D<T>& Samp3, 
 	double angleY, double angleZ, T fxlo, T fxst, T fylo, T fyst, T fzlo, T fzst, 
 	std::complex<T> Fxc, std::complex<T> Fyc, std::complex<T> Fzc, double wl, bool bRotCentreShift, bool bESCC)
 {
 	int nx = (int)Samp3.GetDim3();
 	int ny = (int)Samp3.GetDim2();
 	int nz = (int)Samp3.GetDim1();
-	int nx2 = int(nx) - 2, ny2 = int(ny) - 2;
-	int nzd2 = int(nz / 2), nz2 = int(nz) - 2;
-	index_t nxny = (nx * ny);
+	int nx2 = int(nx) - 2, ny2 = int(ny) - 2, nz2 = int(nz) - 2;
+	int nxd2 = int(nx / 2), nyd2 = int(ny / 2), nzd2 = int(nz / 2);
+	index_t nxny = nx * ny;
 	double wl2 = 0.5 * wl;
 	T sinangleY = (T)sin(angleY);
 	T cosangleY = (T)cos(angleY);
@@ -248,18 +246,18 @@ template <class T> void CT_3Dgridding(const xar::XArray2D<xar::dcomplex>& K2four
 			zzz = x_sinangleY[i] + zz * cosangleY; // qz coordinate after the rotation around Y'
 			dz1 = (zzz - fzlo) / fzst;
 			nn = (int)floor(dz1); if (nn < 0 || nn > nz2) continue;
-			dz1 -= nn; dz0 = 1.0f - dz1;
 
 			// inverse rotation around Z axis
 			xxx = xx * cosangleZ + y_sinangleZ[j]; // qx coordinate after the rotation around Z
-			yyy = -xx * sinangleZ + y_cosangleZ[j]; // qy coordinate after the rotation around Z
-
 			dx1 = (xxx - fxlo) / fxst;
 			ii = (int)floor(dx1); if (ii < 0 || ii > nx2) continue;
-			dx1 -= ii; dx0 = 1.0f - dx1;
+			yyy = -xx * sinangleZ + y_cosangleZ[j]; // qy coordinate after the rotation around Z
 			dy1 = (yyy - fylo) / fyst;
 			jj = (int)floor(dy1); if (jj < 0 || jj > ny2) continue;
+
+			dx1 -= ii; dx0 = 1.0f - dx1;
 			dy1 -= jj; dy0 = 1.0f - dy1;
+			dz1 -= nn; dz0 = 1.0f - dz1;
 
 			cd = K2four[j][i];
 			// multiply by linear phase factors due to the shifted centre of rotation in the real space

@@ -1,5 +1,5 @@
 fftw3.h
-fftwd2c.h
+fftwd2fc.h
 fftwd3drc.h
 fftwf3frc.h
 IXAHead.h
@@ -35,7 +35,7 @@ Ooura_fftsg_dbl.c
 Ooura_fftsg_flt.c
 XA_ini.cpp
 XA_file.cpp
-fftwf2dc.cpp
+fftwd2fc.cpp
 fftwd3frc.cpp
 fftwd3drc.cpp
 IXAHWave.cpp

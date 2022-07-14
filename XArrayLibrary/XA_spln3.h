@@ -422,7 +422,7 @@ template <class T> void xar::XArray3DSpln<T>::Rotate1(XArray3D<T>& xaResult3D, d
 //	//! Rotates 3D array around a given point with respect to three axes (three Euler angles)
 //
 /*!
-	\brief		Rotates 3D array around two axes
+	\brief		Rotates 3D array around three axes
 	\param		xaResult3D Resultant rotated 3D array
 	\param		angleZ rotation anglez (in radians) around Z axis
 	\param		angleY rotation anglez (in radians) around Y' axis
@@ -436,6 +436,7 @@ template <class T> void xar::XArray3DSpln<T>::Rotate1(XArray3D<T>& xaResult3D, d
 	\return		\a None
 	\par		Description:
 		This function rotates 3D array around a specified point by the 3 specified Euler angles using trilinear interpolation
+		Note that it actually rotates the array by -angleZ2, -angleY and -angleZ, in this order
 */
 template <class T> void xar::XArray3DSpln<T>::Rotate3(XArray3D<T>& xaResult3D, double angleZ, double angleY, double angleZ2, int nThreads, double zc, double yc, double xc, T Backgr) const
 {
@@ -507,25 +508,25 @@ template <class T> void xar::XArray3DSpln<T>::Rotate3(XArray3D<T>& xaResult3D, d
 			{
 				// inverse rotation around Y' axis
 				// zk = m_zlo + m_zst * n;
-				// x = xc + (xk - xc) * cosangley + (-zk + zc) * sinangley;// 
+				// x = xc + (xk - xc) * cosangley + (-zk + zc) * sinangley; 
 				// z = zc + (xk - xc) * sinangley + (zk - zc) * cosangley;
 				xx = xx_cosangleY - z_sinangleY[n]; // x - xc coordinate after the inverse rotation around Y'
 				zzz = xx_sinangleY + z_cosangleY[n]; // z coordinate after the inverse rotation around Y'
-				dz1 = std::abs(zzz - m_zlo) / m_zst;
-				nn = (int)dz1; if (nn < 0 || nn > nz2) continue;
+				dz1 = (zzz - m_zlo) / m_zst;
+				nn = (int)floor(dz1); if (nn < 0 || nn > nz2) continue;
 				dz1 -= nn; dz0 = 1.0 - dz1;
 
 				// inverse rotation around Z axis
 				//pd.adata[i].x = xc + (xk - xc) * cosanglez + (yk - yc) * sinanglez;
 				//pd.adata[i].y = yc + (-xk + xc) * sinanglez + (yk - yc) * cosanglez;
 				xxx = yy_sinangleZ + xx * cosangleZ; // x coordinate after the inverse rotation around Z
-				dx1 = std::abs(xxx - m_xlo) / m_xst;
-				ii = (int)dx1; if (ii < 0 || ii > nx2) continue;
+				dx1 = (xxx - m_xlo) / m_xst;
+				ii = (int)floor(dx1); if (ii < 0 || ii > nx2) continue;
 				dx1 -= ii; dx0 = 1.0 - dx1;
 
 				yyy = yy_cosangleZ - xx * sinangleZ; // y coordinate after the inverse rotation around Z
-				dy1 = std::abs(yyy - m_ylo) / m_yst;
-				jj = (int)dy1; if (jj < 0 || jj > ny2) continue;
+				dy1 = (yyy - m_ylo) / m_yst;
+				jj = (int)floor(dy1); if (jj < 0 || jj > ny2) continue;
 				dy1 -= jj; dy0 = 1.0 - dy1;
 
 				xaResult3D[n][j][i] = m_rXArray3D[nn][jj][ii] * T(dx0 * dy0 * dz0) +

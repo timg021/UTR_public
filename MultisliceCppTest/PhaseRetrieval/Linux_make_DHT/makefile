@@ -1,4 +1,3 @@
-#This file can be used to build the DHT=PhaseRetrieval application under Ubuntu Linux; it is not involved in the Visual Studio project and may appear there only for information purposes.
 IDIR =../include
 CC=gcc-9
 CPP=g++-9
@@ -14,13 +13,13 @@ ODIR = obj
 LDIR = $(FFTWdir)
 XArraydir = ../XArrayLibrary
 DHTdir = ../PhaseRetrieval
-_DEPS = XA_born.h XA_filt2.h XArray1D.h XA_spln3.h fftwd3drc.h IXAHWave.h XA_data.h XA_head1.h XA_ini.h XArray2D.h XA_tie.h OouraFft.h stdafx.cpp XA_fft2.h XA_head2.h XA_iwfr.h XArray3D.h XA_tiff.h fftwf3drc.h stdafx.h XA_fftr2.h XA_head3.h XA_move2.h XA_move3.h XArray.h IXAHead.h unwrap_2d_ljmu.h XA_file.h XAHWave.h XA_spln2.h
+_DEPS = XA_born.h XA_filt2.h XArray1D.h XA_spln3.h fftwd2c.h fftwd3drc.h IXAHWave.h XA_data.h XA_head1.h XA_ini.h XArray2D.h XA_tie.h OouraFft.h stdafx.cpp XA_fft2.h XA_head2.h XA_iwfr.h XArray3D.h XA_tiff.h fftwd3frc.h stdafx.h XA_fftr2.h XA_head3.h XA_move2.h XA_move3.h XArray.h IXAHead.h unwrap_2d_ljmu.h XA_file.h XAHWave.h XA_spln2.h
 DEPS = $(patsubst %,$(XArraydir)/%,$(_DEPS))
 
-_OBJ =  Ooura_fftsg_flt.o Ooura_fftsg2d_dbl.o Ooura_fftsg_dbl.o XArray.o unwrap_2d_ljmu.o fftwd3drc.o fftwf3drc.o IXAHWave.o XA_ini.o XA_file.o XAHWave.o Ooura_fftsg2d_flt.o DHT.o
+_OBJ =  Ooura_fftsg_flt.o Ooura_fftsg2d_dbl.o Ooura_fftsg_dbl.o XArray.o unwrap_2d_ljmu.o fftwd2c.o fftwd3drc.o fftwd3frc.o IXAHWave.o XA_ini.o XA_file.o XAHWave.o Ooura_fftsg2d_flt.o DHT.o
 OBJ = $(patsubst %,$(ODIR)/%,$(_OBJ))
 
-LIBS= -lm -lfftw3 -lfftw3f
+LIBS= -lm -lpthread -lfftw3 -lfftw3_threads -lfftw3f_threads -lfftw3f -lfftw3_omp -lfftw3f_omp
 
 # $(ODIR)/%.o: %.c $(XarrayDEPS)
 # 	echo $(ODIR)
@@ -43,10 +42,13 @@ $(ODIR)/Ooura_fftsg_dbl.o: $(XArraydir)/Ooura_fftsg_dbl.c $(DEPS)
 $(ODIR)/unwrap_2d_ljmu.o: $(XArraydir)/unwrap_2d_ljmu.c $(DEPS)
 	$(CC) -c $(CFLAGSC) -o $@ $< $(CFLAGS)  
 
+$(ODIR)/fftwd2c.o: $(XArraydir)/fftwd2c.cpp $(DEPS)
+	$(CPP) -c $(CFLAGS1) -o $@ $< $(CFLAGS)
+
 $(ODIR)/fftwd3drc.o: $(XArraydir)/fftwd3drc.cpp $(DEPS)
 	$(CPP) -c $(CFLAGS1) -o $@ $< $(CFLAGS)
 
-$(ODIR)/fftwf3drc.o: $(XArraydir)/fftwf3drc.cpp $(DEPS)
+$(ODIR)/fftwd3frc.o: $(XArraydir)/fftwd3frc.cpp $(DEPS)
 	$(CPP) -c $(CFLAGS1) -o $@ $< $(CFLAGS)
 
 $(ODIR)/IXAHWave.o: $(XArraydir)/IXAHWave.cpp $(DEPS)

@@ -867,14 +867,14 @@ namespace xar
 				{
 					if(fread(pcTemp, 1, tiInfo.dwImageWidth, pInputFile) != tiInfo.dwImageWidth)
 					{
-						delete pcTemp;
+						delete [] pcTemp;
 						throw std::runtime_error("runtime_error in TIFFReadFile (error reading from file)");
 					}
 					dwRow = dwCurRow + tiInfo.dwRowsPerStrip * dwCurStrip;
 					for(dwCount = 0; dwCount < tiInfo.dwImageWidth; dwCount++) // process all pixels in the row
 						rXAr2D[dwRow][dwCount] = T(dC + factor * pcTemp[dwCount]); // convert to T
 				}
-				delete pcTemp;
+				delete []pcTemp;
 				break;
 			case 2:
 				pwTemp = new XARWORD[tiInfo.dwImageWidth];
@@ -882,14 +882,14 @@ namespace xar
 				{
 					if(fread(pwTemp, 2, tiInfo.dwImageWidth, pInputFile) != tiInfo.dwImageWidth)
 					{
-						delete pwTemp;
+						delete [] pwTemp;
 						throw std::runtime_error("runtime_error in TIFFReadFile (error reading from file)");
 					}
 					dwRow = dwCurRow + tiInfo.dwRowsPerStrip * dwCurStrip;
 					for(dwCount = 0; dwCount < tiInfo.dwImageWidth; dwCount++) // process all pixels in the row
 						rXAr2D[dwRow][dwCount] = T(dC + factor * pwTemp[dwCount]); // convert to T
 				}
-				delete pwTemp;
+				delete [] pwTemp;
 				break;
 			case 4:
 				pfTemp = new float[tiInfo.dwImageWidth];
@@ -897,14 +897,14 @@ namespace xar
 				{
 					if(fread(pfTemp, 4, tiInfo.dwImageWidth, pInputFile) != tiInfo.dwImageWidth)
 					{
-						delete pfTemp;
+						delete [] pfTemp;
 						throw std::runtime_error("runtime_error in TIFFReadFile (error reading from file)");
 					}
 					dwRow = dwCurRow + tiInfo.dwRowsPerStrip * dwCurStrip;
 					for(dwCount = 0; dwCount < tiInfo.dwImageWidth; dwCount++) // process all pixels in the row
 						rXAr2D[dwRow][dwCount] = T(dC + factor * pfTemp[dwCount]); // convert to T
 				}
-				delete pfTemp;
+				delete [] pfTemp;
 				break;
 			default:
 				throw std::runtime_error("runtime_error in TIFFReadFile (unsupported number of bytes per sample)");

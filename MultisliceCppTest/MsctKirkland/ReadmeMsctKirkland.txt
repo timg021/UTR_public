@@ -216,7 +216,7 @@ see the same ice.
 
 Parameter 14 determines if the atomic structure that was read from the file specified in Parameter 1 
 and embedded in the internally generated pseudo-random layer of amorphous ice is saved into an XYZ
-file. If this parameter is equal to 0, the structure in ice is not saved. If this parameter is equal
+file. If this parameter is equal to 0, the structure embedded in ice is not saved. If this parameter is equal
 to 1, the atomic structure embedded in ice is saved in an XYZ file at each rotational orientation.
 If this parameter is equal to 2, the atomic structure embedded in ice is saved in an XYZ file
 only at the first rotational orientation. The names of the corresponding XYZ files are generated

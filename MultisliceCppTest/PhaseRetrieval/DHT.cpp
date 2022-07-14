@@ -1481,7 +1481,7 @@ int main(int argc, char* argv[])
 		{
 			printf("\nInverse Laplace filtering the reconstructed 3D object ...");
 			// NOTE: it appears that multitheading actually slowing the FFTW 3D FFT down
-			Fftwd3drc fft3((int)nz, (int)ny, (int)nx, 1);
+			Fftwd3drc fft3((int)nz, (int)ny, (int)nx, 1, true);
 			fft3.InverseMLaplacian(K3out, alpha, alpha);
 		}
 
@@ -1491,7 +1491,7 @@ int main(int argc, char* argv[])
 		{
 			XArray3D<double> K3outTemp = K3out;
 			// NOTE: it appears that multitheading actually slowing the FFTW 3D FFT down
-			Fftwd3drc fft3((int)nz, (int)ny, (int)nx, 1);
+			Fftwd3drc fft3((int)nz, (int)ny, (int)nx, 1, true);
 			fft3.GaussFilter(K3outTemp, dlpfiltersize / 2.355);
 			K3out -= K3outTemp;
 		}

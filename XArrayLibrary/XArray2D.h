@@ -73,6 +73,8 @@ namespace xar
 		XArray2D(index_t iDim1, index_t iDim2, T tVal = T());
 		//! Promotion from vector
 		XArray2D(const vector<T>& rXArB, index_t iDim1, index_t iDim2);
+		//! Move promotion from vector
+		XArray2D(vector<T>&& rXArB, index_t iDim1, index_t iDim2);
 		//! Promotion from XArray
 		XArray2D(const XArray<T>& rXArB, index_t iDim1, index_t iDim2);
 		//! Move promotion from XArray
@@ -232,7 +234,17 @@ namespace xar
 		: XArray<T>(va)
 	{
 		if (iDim1 < 0 || iDim2 < 0)
-			throw std::invalid_argument("invalid_argument 'iDim1 or iDim2' in XArray2D<T>::XArray2D (negative dimension)"); 	
+			throw std::invalid_argument("invalid_argument 'iDim1 or iDim2' in XArray2D<T>::XArray2D (negative dimension)");
+		m_iDim1 = iDim1;
+		m_iDim2 = iDim2;
+	}
+
+	//! Move promotion from vector
+	template <class T> XArray2D<T>::XArray2D(vector<T>&& va, index_t iDim1, index_t iDim2)
+		: XArray<T>(std::move(va))
+	{
+		if (iDim1 < 0 || iDim2 < 0)
+			throw std::invalid_argument("invalid_argument 'iDim1 or iDim2' in XArray2D<T>::XArray2D (negative dimension)");
 		m_iDim1 = iDim1;
 		m_iDim2 = iDim2;
 	}
@@ -249,7 +261,7 @@ namespace xar
 
 	//! Move promotion from XArray
 	template <class T> XArray2D<T>::XArray2D(XArray<T>&& xa, index_t iDim1, index_t iDim2)
-		: XArray<T>(xa)
+		: XArray<T>(std::move(xa))
 	{
 		if (iDim1 < 0 || iDim2 < 0)
 			throw std::invalid_argument("invalid_argument 'iDim1 or iDim2' in XArray2D<T>::XArray2D (negative dimension)");
@@ -470,7 +482,7 @@ namespace xar
 		if (this == &xa2) return;
 		m_iDim1 = xa2.m_iDim1;
 		m_iDim2 = xa2.m_iDim2;
-		XArray<T>::operator=(static_cast<XArray<T>&&>(xa2));
+		XArray<T>::operator=(std::move(xa2));
 	}
 
 	//! Performs elementwise addition of the two arrays

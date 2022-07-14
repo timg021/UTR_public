@@ -10,13 +10,13 @@ CFLAGSC= -Wno-unused-result -Wno-format-overflow -fopenmp
 FFTWdir = /usr/lib/x86_64-linux-gnu
 
 ODIR = obj
-LDIR = $(FFTWdir)
+LDIR = -L $(FFTWdir)
 XArraydir = ../XArrayLibrary
 UTRdir = ../PhaseRetrieval
-_DEPS = XA_filt2.h XArray1D.h XA_spln3.h fftwd3drc.h IXAHWave.h XA_data.h XA_head1.h XA_ini.h XArray2D.h XA_tie.h OouraFft.h stdafx.cpp XA_fft2.h XA_head2.h XA_iwfr.h XArray3D.h XA_tiff.h fftwd3frc.h stdafx.h XA_fftr2.h XA_head3.h XA_move2.h XA_move3.h XArray.h IXAHead.h XA_file.h XAHWave.h XA_spln2.h UTR.h
+_DEPS = XA_filt2.h XArray1D.h XA_spln3.h fftwd3drc.h IXAHWave.h XA_data.h XA_head1.h XA_ini.h XArray2D.h XA_tie.h OouraFft.h stdafx.cpp XA_fft2.h XA_head2.h XA_iwfr.h XArray3D.h XA_tiff.h fftwd3frc.h fftwd2fc.h stdafx.h XA_fftr2.h XA_head3.h XA_move2.h XA_move3.h XArray.h IXAHead.h XA_file.h XAHWave.h XA_spln2.h UTR.h FindPeaks.h
 DEPS = $(patsubst %,$(XArraydir)/%,$(_DEPS))
 
-_OBJ =  Ooura_fftsg_flt.o Ooura_fftsg2d_dbl.o Ooura_fftsg_dbl.o XArray.o fftwd2c.o fftwd3drc.o fftwd3frc.o IXAHWave.o XA_ini.o XA_file.o XAHWave.o Ooura_fftsg2d_flt.o FindPeaks.o UTR.o
+_OBJ =  Ooura_fftsg_flt.o Ooura_fftsg2d_dbl.o Ooura_fftsg_dbl.o XArray.o fftwd2fc.o fftwd3drc.o fftwd3frc.o IXAHWave.o XA_ini.o XA_file.o XAHWave.o Ooura_fftsg2d_flt.o FindPeaks.o UTR.o
 OBJ = $(patsubst %,$(ODIR)/%,$(_OBJ))
 
 LIBS= -lm -lpthread -lfftw3 -lfftw3_threads -lfftw3f_threads -lfftw3f -lfftw3_omp -lfftw3f_omp
@@ -39,7 +39,7 @@ $(ODIR)/Ooura_fftsg2d_dbl.o: $(XArraydir)/Ooura_fftsg2d_dbl.c $(DEPS)
 $(ODIR)/Ooura_fftsg_dbl.o: $(XArraydir)/Ooura_fftsg_dbl.c $(DEPS)
 	$(CC) -c $(CFLAGSC) -o $@ $< $(CFLAGS)  
 
-$(ODIR)/fftwd2c.o: $(XArraydir)/fftwd2c.cpp $(DEPS)
+$(ODIR)/fftwd2fc.o: $(XArraydir)/fftwd2fc.cpp $(DEPS)
 	$(CPP) -c $(CFLAGS1) -o $@ $< $(CFLAGS)
 
 $(ODIR)/fftwd3drc.o: $(XArraydir)/fftwd3drc.cpp $(DEPS)
@@ -70,9 +70,9 @@ $(ODIR)/UTR.o: $(UTRdir)/UTR.cpp $(DEPS)
 	$(CPP) -c $(CFLAGS1) -o $@ $< -I ../XArrayLibrary $(CFLAGS)
 
 UTR: $(OBJ)
-	$(CPP) $(CFLAGS1) $(OBJ) $(CFLAGS) $(LIBS) -o UTR
+	$(CPP) $(CFLAGS1) $(OBJ) $(CFLAGS) $(LDIR) $(LIBS) -o UTR
 
-#clean:
+clean:
 	rm $(ODIR)/*.o
 
 

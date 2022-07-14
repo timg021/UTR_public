@@ -16,6 +16,7 @@
 #include "XA_move2.h"
 #include "fftwd3frc.h"
 
+#include "FindPeaks.h" // a function for finding peak values in a 3D distribution
 #include "UTR.h" // various include headers, constants and templates
 
 using namespace xar;
@@ -42,27 +43,48 @@ int main(int argc, char* argv[])
 		string sInputParamFile("UTR.txt");
 		if (argc > 1) sInputParamFile = argv[1];
 
+		bool bXrayPar(false);
+		string sInputParamFileExt = sInputParamFile.substr(sInputParamFile.find_first_of("."), 4);
+		if (sInputParamFileExt == string(".xri") || sInputParamFileExt == string(".XRI")) bXrayPar = true;
+
 		FILE* ff0 = fopen(sInputParamFile.c_str(), "rt");
 		if (!ff0) throw std::runtime_error(string("Error: cannot open parameter file " + sInputParamFile + ".").c_str());
-		else printf("\nReading input parameter file %s ...", sInputParamFile.c_str());
 
 		// read and skip an arbitrary number of initial comment lines (i.e. the lines that start with // symbols)
+		printf("\nReading input parameter file %s ...", sInputParamFile.c_str());
 		while (true)
 		{
 			fgets(cline, 1024, ff0);
 			if (!(cline[0] == '/' && cline[1] == '/')) break;
 		}
 
-		strtok(cline, "\n"); // 1. Verbose output during execution? Yes = 1, No = 0
+		int iModality(1);
+		if (!bXrayPar)
+		{
+			strtok(cline, "\n"); // 1. Modality and units of length(UL): TEM and Angstroms(0) or X-ray CT and microns(1)
+			if (sscanf(cline, "%s %s", ctitle, cparam) != 2)
+				throw std::runtime_error("Error reading units of length from input parameter file.");
+			iModality = atoi(cparam);
+		}
+		if (iModality == 0) // electrons and Angstroms (TEM)
+			printf("\nUnits of length (UL) are set to Angstroms (TEM imaging mode will be used)");
+		else if (iModality == 1) // X-rays and microns (X-ray CT)
+			printf("\nUnits of length (UL) are set to microns (X-ray CT imaging mode will be used)");
+		else
+			throw std::runtime_error("Error: modality and units of length parameter in input parameter file must be 0 for TEM/Angstroms or 1 for X-ray CT/microns.");
+
+
+		if (!bXrayPar) fgets(cline, 1024, ff0);
+		strtok(cline, "\n"); // 2. Verbose output during execution? Yes = 1, No = 0
 		if (sscanf(cline, "%s %s", ctitle, cparam) != 2) throw std::runtime_error("Error reading verbose output parameter from input parameter file.");
 		bool bVerboseOutput(true); // if this is TRUE, additional information is printed during execution
 		(atoi(cparam) == 0 || atoi(cparam) == 1) ? bVerboseOutput = (bool)atoi(cparam) : throw std::runtime_error("Error: verbose output parameter must be 0 or 1 in input parameter file.");
 
-		fgets(cline, 1024, ff0); strtok(cline, "\n"); // 2. Input file with rotation angles and defocus distances
+		fgets(cline, 1024, ff0); strtok(cline, "\n"); // 3. Input file with rotation angles and defocus distances
 		if (sscanf(cline, "%s %s", ctitle, cparam) != 2) throw std::runtime_error("Error reading file name with rotation angles and defocus distances from input parameter file.");
 		string defocfile(cparam);
 
-		fgets(cline, 1024, ff0); strtok(cline, "\n"); // 3.Optional file with indexes and weights for subseries selection or NONE
+		fgets(cline, 1024, ff0); strtok(cline, "\n"); // 4.Optional file with indexes and weights for subseries selection or NONE
 		if (sscanf(cline, "%s %s", ctitle, cparam) != 2) throw std::runtime_error("Error reading the name of a file with indexes and weights for subseries selection from input parameter file.");
 		string subseriesfile(cparam);
 		bool bSelectFrames(false);
@@ -80,58 +102,97 @@ int main(int argc, char* argv[])
 		vector<int> sfIndexes;
 		vector<float> sfWeights;
 		if (GetFileExtension(defocfile) == string(".TXT"))
+		{
 			ReadDefocusParamsFile(defocfile, v2angles, vvdefocus, bVerboseOutput);
-		else
-			if (GetFileExtension(defocfile) == string(".RELIONNEW"))
+			if (bSelectFrames)
 			{
-				ReadRelionDefocusParamsFile(defocfile, v2angles, vvdefocus, vastigm, v2shifts, bVerboseOutput);
-				bRelion = true;
-				if (bSelectFrames)
+				vndefocusFull.resize(v2angles.size()); // vector of numbers of defocus planes at different illumination angles
+				for (index_t i = 0; i < v2angles.size(); i++) vndefocusFull[i] = vvdefocus[i].size();
+				XArray1D<float> rXAr1D, rYAr1D;
+				XArData::ReadFileDAT2(rXAr1D, rYAr1D, subseriesfile.c_str(), 0.02);
+				if (rXAr1D.size() == 0) throw std::runtime_error("Error: the number of entries in the subseries selection file is equal to zero.");
+				else if (rXAr1D.size() > v2angles.size()) throw std::runtime_error("Error: the number of entries in the subseries selection file is larger than the number of entries in the defocus file.");
+				sfIndexes.resize(rXAr1D.size()); sfWeights.resize(rYAr1D.size());
+				int sfMin = int(rXAr1D[0]), sfMax = int(rXAr1D[0]);
+				for (int i = 0; i < rXAr1D.size(); i++)
 				{
-					vndefocusFull.resize(v2angles.size()); // vector of numbers of defocus planes at different illumination angles
-					for (index_t i = 0; i < v2angles.size(); i++) vndefocusFull[i] = vvdefocus[i].size();
-					XArray1D<float> rXAr1D, rYAr1D;
-					XArData::ReadFileDAT2(rXAr1D, rYAr1D, subseriesfile.c_str(), 0.02);
-					if (rXAr1D.size() == 0) throw std::runtime_error("Error: the number of entries in the subseries selection file is equal to zero.");
-					else if (rXAr1D.size() > v2angles.size()) throw std::runtime_error("Error: the number of entries in the subseries selection file is larger than the number of entries in the defocus file.");
-					sfIndexes.resize(rXAr1D.size()); sfWeights.resize(rYAr1D.size());
-					int sfMin = int(rXAr1D[0]), sfMax = int(rXAr1D[0]);
-					for (int i = 0; i < rXAr1D.size(); i++)
-					{
-						sfIndexes[i] = int(rXAr1D[i]);
-						if (sfIndexes[i] > sfMax) sfMax = sfIndexes[i];
-						else if (sfIndexes[i] < sfMin) sfMin = sfIndexes[i];
-					}
-					if (sfMax > v2angles.size() - 1) throw std::runtime_error("Error: some frame indexes in the subseries selection file are larger than the number of entries - 1 in the defocus file.");
-					if (sfMin < 0) throw std::runtime_error("Error: some frame indexes in the subseries selection file are negative.");
-					for (int i = 0; i < rXAr1D.size(); i++)
-					{
-						sfWeights[i] = rYAr1D[i];
-						dTotalWeight += rYAr1D[i];
-					}
-
-					vector<Pair> v2anglesSel, v2shiftsSel, vastigmSel;
-					vector<vector <Pair> > vvdefocusSel;
-					for (int i : sfIndexes)
-					{
-						v2anglesSel.push_back(v2angles[i]);
-						v2shiftsSel.push_back(v2shifts[i]);
-						vastigmSel.push_back(vastigm[i]);
-						vvdefocusSel.push_back(vvdefocus[i]);
-					}
-					v2angles = v2anglesSel;
-					v2shifts = v2shiftsSel;
-					vastigm = vastigmSel;
-					vvdefocus = vvdefocusSel;
-
-					if (dTotalWeight == 0) throw std::runtime_error("Error: the sum of weights in the second column of the subseries selection file is equal to zero.");
-					printf("\nThere are %zd entries in the subseries selection file.", v2angles.size());
+					sfIndexes[i] = int(rXAr1D[i]);
+					if (sfIndexes[i] > sfMax) sfMax = sfIndexes[i];
+					else if (sfIndexes[i] < sfMin) sfMin = sfIndexes[i];
 				}
+				if (sfMax > v2angles.size() - 1) throw std::runtime_error("Error: some frame indexes in the subseries selection file are larger than the number of entries - 1 in the defocus file.");
+				if (sfMin < 0) throw std::runtime_error("Error: some frame indexes in the subseries selection file are negative.");
+				for (int i = 0; i < rXAr1D.size(); i++)
+				{
+					sfWeights[i] = rYAr1D[i];
+					dTotalWeight += rYAr1D[i];
+				}
+
+				vector<Pair> v2anglesSel, v2shiftsSel, vastigmSel;
+				vector<vector <Pair> > vvdefocusSel;
+				for (int i : sfIndexes)
+				{
+					v2anglesSel.push_back(v2angles[i]);
+					vvdefocusSel.push_back(vvdefocus[i]);
+				}
+				v2angles = v2anglesSel;
+				vvdefocus = vvdefocusSel;
+				if (dTotalWeight == 0) throw std::runtime_error("Error: the sum of weights in the second column of the subseries selection file is equal to zero.");
+				printf("\nThere are %zd entries in the subseries selection file.", v2angles.size());
 			}
-			else throw std::runtime_error("Error: unrecognised filename extension of the defocus file in the input parameter file.");
+		}
+		else if (GetFileExtension(defocfile) == string(".RELIONNEW"))
+		{
+			ReadRelionDefocusParamsFile(defocfile, v2angles, vvdefocus, vastigm, v2shifts, bVerboseOutput);
+			bRelion = true;
+			if (bSelectFrames)
+			{
+				vndefocusFull.resize(v2angles.size()); // vector of numbers of defocus planes at different illumination angles
+				for (index_t i = 0; i < v2angles.size(); i++) vndefocusFull[i] = vvdefocus[i].size();
+				XArray1D<float> rXAr1D, rYAr1D;
+				XArData::ReadFileDAT2(rXAr1D, rYAr1D, subseriesfile.c_str(), 0.02);
+				if (rXAr1D.size() == 0) throw std::runtime_error("Error: the number of entries in the subseries selection file is equal to zero.");
+				else if (rXAr1D.size() > v2angles.size()) throw std::runtime_error("Error: the number of entries in the subseries selection file is larger than the number of entries in the defocus file.");
+				sfIndexes.resize(rXAr1D.size()); sfWeights.resize(rYAr1D.size());
+				int sfMin = int(rXAr1D[0]), sfMax = int(rXAr1D[0]);
+				for (int i = 0; i < rXAr1D.size(); i++)
+				{
+					sfIndexes[i] = int(rXAr1D[i]);
+					if (sfIndexes[i] > sfMax) sfMax = sfIndexes[i];
+					else if (sfIndexes[i] < sfMin) sfMin = sfIndexes[i];
+				}
+				if (sfMax > v2angles.size() - 1) throw std::runtime_error("Error: some frame indexes in the subseries selection file are larger than the number of entries - 1 in the defocus file.");
+				if (sfMin < 0) throw std::runtime_error("Error: some frame indexes in the subseries selection file are negative.");
+				for (int i = 0; i < rXAr1D.size(); i++)
+				{
+					sfWeights[i] = rYAr1D[i];
+					dTotalWeight += rYAr1D[i];
+				}
+
+				vector<Pair> v2anglesSel, v2shiftsSel, vastigmSel;
+				vector<vector <Pair> > vvdefocusSel;
+				for (int i : sfIndexes)
+				{
+					v2anglesSel.push_back(v2angles[i]);
+					v2shiftsSel.push_back(v2shifts[i]);
+					vastigmSel.push_back(vastigm[i]);
+					vvdefocusSel.push_back(vvdefocus[i]);
+				}
+				v2angles = v2anglesSel;
+				v2shifts = v2shiftsSel;
+				vastigm = vastigmSel;
+				vvdefocus = vvdefocusSel;
+
+				if (dTotalWeight == 0) throw std::runtime_error("Error: the sum of weights in the second column of the subseries selection file is equal to zero.");
+				printf("\nThere are %zd entries in the subseries selection file.", v2angles.size());
+			}
+		}
+		else throw std::runtime_error("Error: unrecognised filename extension of the defocus file in the input parameter file.");
+
 		index_t nangles = v2angles.size(); // number of rotation steps 
 		vector<index_t> vndefocus(nangles); // vector of numbers of defocus planes at different illumination angles
 		index_t ndefocusmin, ndefocusmax;
+		bool bRotZonly(true), bRotYonly(true), bRotZ2only(true);
 		vndefocus[0] = vvdefocus[0].size();
 		ndefocusmin = ndefocusmax = vndefocus[0];
 		for (index_t i = 1; i < nangles; i++)
@@ -139,9 +200,15 @@ int main(int argc, char* argv[])
 			vndefocus[i] = vvdefocus[i].size();
 			if (vndefocus[i] < ndefocusmin) ndefocusmin = vndefocus[i];
 			if (vndefocus[i] > ndefocusmax) ndefocusmax = vndefocus[i];
+			if (v2angles[i].a != 0) { bRotYonly = false; bRotZ2only = false; }
+			if (v2angles[i].b != 0) { bRotZonly = false; ; bRotZ2only = false; }
+			for (index_t j = 0; j < vndefocus[i]; j++) if (vvdefocus[i][j].a != 0) { bRotYonly = false; bRotZonly = false; }
 		}
 		if (ndefocusmax > 1)
 			throw std::runtime_error("Error: this program is currently implemented only for defocus parameter files with one defocus distance per orientation.");
+		if (bRotZonly) printf("\nDefocus parameter file contains orientations with rotations around the Z axis only.");
+		if (bRotYonly) printf("\nDefocus parameter file contains orientations with rotations around the Y axis only.");
+		if (bRotZ2only) printf("\nDefocus parameter file contains orientations with rotations around the Z'' axis only.");
 
 		// check if conditions for 3D CTF correction are satisfied
 		bool bSingleDefocusDistance(true); // indicates if all defocus distances are the same
@@ -162,7 +229,7 @@ int main(int argc, char* argv[])
 			}
 		}
 
-		fgets(cline, 1024, ff0); strtok(cline, "\n"); // 4. Input filename base of defocus series of the sample in TIFF, GRD or RAW format
+		fgets(cline, 1024, ff0); strtok(cline, "\n"); // 5. Input filename base of defocus series of the sample in TIFF, GRD or RAW format
 		if (sscanf(cline, "%s %s", ctitle, cparam) != 2) throw std::runtime_error("Error reading defocus series file name base from input parameter file.");
 		string filenamebaseIn = cparam;
 		bool bRAWinput(false), bTIFFinput(false), bGRDinput(false);
@@ -172,7 +239,7 @@ int main(int argc, char* argv[])
 		else if (strTemp == string(".GRD")) bGRDinput = true; // this value is not used below at the moment, as GRD is considered to be a default when all other input formats are false
 		else throw std::runtime_error("Error: input filename extension must be TIF, GRD or RAW.");
 
-		fgets(cline, 1024, ff0); strtok(cline, "\n"); // 5. RAW file parameters: HeaderLength(bytes) Endianness(0 = little, 1 = big) ElementLength(bytes) 
+		fgets(cline, 1024, ff0); strtok(cline, "\n"); // 6. RAW file parameters: HeaderLength(bytes) Endianness(0 = little, 1 = big) ElementLength(bytes) 
 		// for RAW files, these parameter determine how the images are read
 		bool bBigEndian;
 		index_t nHeaderLength, nElementLength;
@@ -185,7 +252,7 @@ int main(int argc, char* argv[])
 			throw std::runtime_error("Unrecognised ElementLength in input parameter file (only sizeof(float) or sizeof(double) are allowed).");
 		printf("\nRAW file parameters: HeaderLength = %zd, Endianness = %d, ElementLength = %zd", nHeaderLength, bBigEndian, nElementLength);
 
-		fgets(cline, 1024, ff0); strtok(cline, "\n"); // 6. Input data normalization factors f1 f2 (input -> (input / f1) + f2)
+		fgets(cline, 1024, ff0); strtok(cline, "\n"); // 7. Input data normalization factors f1 f2 (input -> (input / f1) + f2)
 		double dNormFactor1(1.0), dNormFactor2(0.0);
 		if (sscanf(cline, "%s %s %s", ctitle, cparam, cparam1) != 3)
 			throw std::runtime_error("Error reading input data normalization factors from input parameter file.");
@@ -194,10 +261,10 @@ int main(int argc, char* argv[])
 		printf("\nInput data normalization factors: f1 = %g, f2 = %g", dNormFactor1, dNormFactor2);
 		if (dNormFactor1 == 0) throw std::runtime_error("The first normalization factor cannot be zero (leads to division by zero).");
 
-		fgets(cline, 1024, ff0); strtok(cline, "\n"); // 7. Width(pix) and height(pix) of input images
+		fgets(cline, 1024, ff0); strtok(cline, "\n"); // 8. Width(x, pix) and height(y, pix) of input images
 		// for RAW files, these parameter determine how the images are read; for TIFF and GRD files, these parameters may be used for trimming the frames
 		if (sscanf(cline, "%s %s %s", ctitle, cparam, cparam1) != 3)
-			throw std::runtime_error("Error reading Width Height from input parameter file.");
+			throw std::runtime_error("Error reading the width and height of input images in pixels from input parameter file.");
 		index_t nx = atoi(cparam);
 		index_t ny = atoi(cparam1);
 		printf("\nDimensions of input images (possibly, after trimming or padding): width = %zd, height = %zd (pixels)", nx, ny);
@@ -206,17 +273,6 @@ int main(int argc, char* argv[])
 			throw std::runtime_error("Error: width and height parameters in input parameter file must be even.");
 		int nx2 = int(nx) - 2, ny2 = int(ny) - 2;
 		index_t nxny = (nx * ny);
-
-		fgets(cline, 1024, ff0); strtok(cline, "\n"); // 8. Modality and units of length(UL): TEM and Angstroms(0) or X-ray CT and microns(1)
-		if (sscanf(cline, "%s %s", ctitle, cparam) != 2)
-			throw std::runtime_error("Error reading units of length from input parameter file.");
-		int iModality = atoi(cparam);
-		if (iModality == 0) // electrons and Angstroms (TEM)
-			printf("\nUnits of length (UL) are set to Angstroms (TEM imaging mode will be used)");
-		else if (iModality == 1) // X-rays and microns (X-ray CT)
-				printf("\nUnits of length (UL) are set to microns (X-ray CT imaging mode will be used)");
-			else
-				throw std::runtime_error("Error: modality and units of length parameter in input parameter file must be 0 for TEM/Angstroms or 1 for X-ray CT/microns.");
 		
 		fgets(cline, 1024, ff0); strtok(cline, "\n"); // 9. Pixel size in UL
 		if (sscanf(cline, "%s %s", ctitle, cparam) != 2)
@@ -235,13 +291,20 @@ int main(int argc, char* argv[])
 		double fxst = 1.0 / (xhi - xlo), fyst = 1.0 / (yhi - ylo);
 		double fxlo = -fxst * nxd2, fylo = -fyst * nyd2;
 
-		fgets(cline, 1024, ff0); strtok(cline, "\n"); // 10. Output defocus distances min and max in UL
-		if (sscanf(cline, "%s %s %s", ctitle, cparam, cparam1) != 3) throw std::runtime_error("Error reading output defocus distances from input parameter file.");
-		double zlo = atof(cparam); // minimum output defocus in UL - !!! will be corrected with dzextra below
-		double zhi = atof(cparam1); // maximum output defocus in UL - !!! will be corrected with dzextra below 
-		double zst = xst; // this is a provision for possible future extensions to non-qubic voxels
-		if (zlo > zhi) std::swap(zlo, zhi);
+		double zlo(-(xhi - xlo) / 2.0); // minimum output defocus in UL (relative to the centre of the reconstruction volume)
+		double zhi(((xhi - xlo) / 2.0)); // maximum output defocus in UL (relative to the centre of the reconstruction volume)
+		double zst(xst); // this is a provision for possible future extensions to non-qubic voxels
+		if (!bXrayPar)
+		{
+			fgets(cline, 1024, ff0); strtok(cline, "\n"); // 10. Output defocus distances min and max in UL
+			if (sscanf(cline, "%s %s %s", ctitle, cparam, cparam1) != 3) throw std::runtime_error("Error reading output defocus distances from input parameter file.");
+			zlo = atof(cparam); // minimum output defocus in UL
+			zhi = atof(cparam1); // maximum output defocus in UL
+			if (zlo > zhi) std::swap(zlo, zhi);
+		}
 		index_t nz = index_t((zhi - zlo) / zst + 0.5); // number of defocus planes to propagate to
+		printf("\nDimensions of the output volume: width = %zd, height = %zd, thickness = %zd (pixels)", nx, ny, nz);
+		printf("\nPhysical boundaries of the output volume: Xmin = %g, Xmax = %g, Ymin = %g, Ymax = %g, Zmin = %g, Zmax = %g (UL)", xlo, xhi, ylo, yhi, zlo, zhi);
 		if (nz <= 0)
 			throw std::runtime_error("Error: number of z steps is not positive.");
 		int nzd2 = int(nz / 2), nz2 = int(nz) - 2;
@@ -265,6 +328,7 @@ int main(int argc, char* argv[])
 		double xc = (xhi + xlo) / 2.0 + dxc; // x-coordinate of the centre of rotation
 		double yc = (yhi + ylo) / 2.0 + dyc; // y-coordinate of the centre of rotation
 		double zc = (zhi + zlo) / 2.0 + dzc; // z-coordinate of the centre of rotation
+		index_t ic = index_t((xc - xlo) / xst + 0.5), jc = index_t((yc - ylo) / yst + 0.5), kc = index_t((zc - zlo) / zst + 0.5);
 
 		fgets(cline, 1024, ff0); strtok(cline, "\n"); // 12. Wavelength in UL
 		if (sscanf(cline, "%s %s", ctitle, cparam) != 2) throw std::runtime_error("Error reading wavelength from input parameter file.");
@@ -296,22 +360,30 @@ int main(int argc, char* argv[])
 		else printf("\nDepth of field is smaller than the thickness of the reconstruction volume - Ewald sphere curvature may be important.");
 		double wl2 = 0.5 * wl;
 
-		fgets(cline, 1024, ff0); strtok(cline, "\n"); // 13. Objective aperture in mrad
-		if (sscanf(cline, "%s %s", ctitle, cparam) != 2) throw std::runtime_error("Error reading objective aperture from input parameter file.");
-		double aobj = atof(cparam);
-		if (aobj != 0) printf("\nObjective aperture (half-angle) = %g (mrad)", aobj);
-		else  printf("\nObjective aperture is infinite.");
-		if (aobj < 0 || aobj > 1000)
-			throw std::runtime_error("Error: objective aperture value appears to be wrong.");
+		double aobj(0);
+		if (!bXrayPar)
+		{
+			fgets(cline, 1024, ff0); strtok(cline, "\n"); // 13. Objective aperture in mrad
+			if (sscanf(cline, "%s %s", ctitle, cparam) != 2) throw std::runtime_error("Error reading objective aperture from input parameter file.");
+			aobj = atof(cparam);
+			if (aobj != 0) printf("\nObjective aperture (half-angle) = %g (mrad)", aobj);
+			else  printf("\nObjective aperture is infinite.");
+			if (aobj < 0 || aobj > 1000)
+				throw std::runtime_error("Error: objective aperture value appears to be wrong.");
+		}
 		double k2maxo = pow(aobj * 0.001f / wl, 2.0); // Fourier space bandwidth
 
-		fgets(cline, 1024, ff0); strtok(cline, "\n"); // 14. Spherical aberrations Cs3 and Cs5 in mm
-		if (sscanf(cline, "%s %s %s", ctitle, cparam, cparam1) != 3) throw std::runtime_error("Error reading spherical aberrations from input parameter file.");
-		double Cs3 = atof(cparam);
-		double Cs5 = atof(cparam1);
-		printf("\nSpherical aberrations: Cs3 = %g, Cs5 = %g (mm)", Cs3, Cs5);
-		Cs3 *= 1.e+7; // mm --> UL
-		Cs5 *= 1.e+7; // mm --> UL
+		double Cs3(0), Cs5(0);
+		if (!bXrayPar)
+		{
+			fgets(cline, 1024, ff0); strtok(cline, "\n"); // 14. Spherical aberrations Cs3 and Cs5 in mm
+			if (sscanf(cline, "%s %s %s", ctitle, cparam, cparam1) != 3) throw std::runtime_error("Error reading spherical aberrations from input parameter file.");
+			Cs3 = atof(cparam);
+			Cs5 = atof(cparam1);
+			printf("\nSpherical aberrations: Cs3 = %g, Cs5 = %g (mm)", Cs3, Cs5);
+			Cs3 *= 1.e+7; // mm --> UL
+			Cs5 *= 1.e+7; // mm --> UL
+		}
 		
 		fgets(cline, 1024, ff0); strtok(cline, "\n"); // 15.Phase_retrieval_method:_CTF-2D(0),_CTF-3D(1),_TIE-Hom-3D(2)_or_none(3): 2
 		if (sscanf(cline, "%s %s", ctitle, cparam) != 2) throw std::runtime_error("Error reading CTF correction phase retrieval method parameter from input parameter file.");
@@ -354,13 +426,20 @@ int main(int argc, char* argv[])
 		}
 		bool bESCC = (bool)atoi(cparam);
 
-		fgets(cline, 1024, ff0); strtok(cline, "\n"); // 17. Absorption fraction beta / delta
+		fgets(cline, 1024, ff0); strtok(cline, "\n"); // 17. Absorption fraction beta / delta (or -delta / beta in the case of .xri parameter file)
 		if (sscanf(cline, "%s %s", ctitle, cparam) != 2) throw std::runtime_error("Error reading absorptioin coefficient from input parameter file.");
 		double asigma = atof(cparam);
-		printf("\nAbsorption fraction beta/delta = %g", asigma);
+		if (bXrayPar)
+		{
+			printf("\ndelta / beta = %g (n = 1 - delta + i * beta)", asigma);
+			if (asigma <= 0) throw std::runtime_error("Error: delta / beta must be positive in the case of .xri parameter file (X-ray imaging mode).");
+			asigma = -1.0 / asigma;
+		}
+		else printf("\nAbsorption fraction beta/delta = %g", asigma);
 		if (iModality == 0 && asigma < 0) throw std::runtime_error("Error: beta/delta must be non-negative in TEM mode.");
-		if (iModality == 1 && asigma >= 0) throw std::runtime_error("Error: beta/delta must be negative in hard X-ray mode.");
-		if (asigma >= 0 && (iCTFcorrectionMode == 1 || iCTFcorrectionMode == 2)) throw std::runtime_error("Error: beta/delta must be negative in TIE-Hom phase retrieval.");
+		if (iModality == 1 && asigma >= 0) throw std::runtime_error("Error: beta/delta must be negative in hard X-ray mode (unless .xri parameter file is used).");
+		if (asigma >= 0 && (iCTFcorrectionMode == 1 || iCTFcorrectionMode == 2)) 
+			throw std::runtime_error("Error: beta/delta must be negative in TIE-Hom phase retrieval.");
 
 		fgets(cline, 1024, ff0); strtok(cline, "\n"); // 18. Average noise to signal ratio (1/SNR) in input images (1/sqrt(Nphot))
 		if (sscanf(cline, "%s %s", ctitle, cparam) != 2) throw std::runtime_error("Error reading average noise-to-signal ratio in input images from input parameter file.");
@@ -378,46 +457,50 @@ int main(int argc, char* argv[])
 		if (epsilon == 0 && asigma == 0)
 			throw std::runtime_error("Error: when beta/delta == 0, epsilon must be positive.");
 
-		fgets(cline, 1024, ff0); strtok(cline, "\n"); //20. Enforce symmetry: not_apply(0), post-apply(1), or distribute input orientations(2)
-		if (sscanf(cline, "%s %s", ctitle, cparam) != 2) throw std::runtime_error("Error reading enforcing symmetry mode from input parameter file.");
-		int imodeSymmetry = atoi(cparam);
-		switch (imodeSymmetry)
-		{
-		case 0:
-			printf("\nKnown symmetry won't be applied.");
-			break;
-		case 1:
-			//printf("\nInput orientations will be distributed according to known invariant rotational positions.");
-				throw std::runtime_error("Error: symmetry enforcing mode has not been implemented in this program yet.");
-			break;
-		case 2:
-			printf("\nKnown symmetry will be applied after initial reconstruction or import of a 3D potential or beta.");
-			break;
-		default:
-			throw std::runtime_error("Error: unknown value for symmetry enforcing mode in input parameter file.");
-		}
-
-		fgets(cline, 1024, ff0); strtok(cline, "\n"); // 21.Input file with rotation angles enforcing symmetry
-		if (sscanf(cline, "%s %s", ctitle, cparam) != 2) throw std::runtime_error("Error reading file name with rotation angles enforcing symmetry from input parameter file.");
+		int imodeSymmetry(0);
 		index_t nanglesSym{ 1 }, nanglesIn1Sym{ nangles };
 		vector<Pair> v2anglesSym;
 		vector<vector <Pair> > vvdefocusSym;
-		if (imodeSymmetry != 0)
-			if (GetFileExtension(string(cparam)) == string(".TXT"))
+		if (!bXrayPar)
+		{
+			fgets(cline, 1024, ff0); strtok(cline, "\n"); //20. Enforce symmetry: not_apply(0), post-apply(1), or distribute input orientations(2)
+			if (sscanf(cline, "%s %s", ctitle, cparam) != 2) throw std::runtime_error("Error reading enforcing symmetry mode from input parameter file.");
+			imodeSymmetry = atoi(cparam);
+			switch (imodeSymmetry)
 			{
-				printf("\nReading symmetry enforcing file %s ...", cparam);
-				ReadDefocusParamsFile(cparam, v2anglesSym, vvdefocusSym, bVerboseOutput);
-				nanglesSym = v2anglesSym.size(); // number of rotation steps in the symmetry file
-				if (imodeSymmetry == 1)
-				{
-					nanglesIn1Sym = nangles / nanglesSym; // number of illumination angles in a set assigned to one symmetry angle
-					if (nanglesIn1Sym < 1) throw std::runtime_error("Error: number of illumination angles is smaller than the number of symmetry angles, so the distribution into groups is impossible.");
-					else printf("\nThere will be % zd illumination angles in each symmetry subgroup.", nanglesIn1Sym);
-				}
+			case 0:
+				printf("\nKnown symmetry won't be applied.");
+				break;
+			case 1:
+				//printf("\nInput orientations will be distributed according to known invariant rotational positions.");
+				throw std::runtime_error("Error: symmetry enforcing mode has not been implemented in this program yet.");
+				break;
+			case 2:
+				printf("\nKnown symmetry will be applied after initial reconstruction or import of a 3D potential or beta.");
+				break;
+			default:
+				throw std::runtime_error("Error: unknown value for symmetry enforcing mode in input parameter file.");
 			}
-			else
-				if (!string(cparam).empty())
-					throw std::runtime_error("Error: filename extension for a file with rotation angles for enforcing symmetry must be .txt or the parameter should be empty.");
+
+			fgets(cline, 1024, ff0); strtok(cline, "\n"); // 21.Input file with rotation angles enforcing symmetry
+			if (sscanf(cline, "%s %s", ctitle, cparam) != 2) throw std::runtime_error("Error reading file name with rotation angles enforcing symmetry from input parameter file.");
+			if (imodeSymmetry != 0)
+				if (GetFileExtension(string(cparam)) == string(".TXT"))
+				{
+					printf("\nReading symmetry enforcing file %s ...", cparam);
+					ReadDefocusParamsFile(cparam, v2anglesSym, vvdefocusSym, bVerboseOutput);
+					nanglesSym = v2anglesSym.size(); // number of rotation steps in the symmetry file
+					if (imodeSymmetry == 1)
+					{
+						nanglesIn1Sym = nangles / nanglesSym; // number of illumination angles in a set assigned to one symmetry angle
+						if (nanglesIn1Sym < 1) throw std::runtime_error("Error: number of illumination angles is smaller than the number of symmetry angles, so the distribution into groups is impossible.");
+						else printf("\nThere will be % zd illumination angles in each symmetry subgroup.", nanglesIn1Sym);
+					}
+				}
+				else
+					if (!string(cparam).empty())
+						throw std::runtime_error("Error: filename extension for a file with rotation angles for enforcing symmetry must be .txt or the parameter should be empty.");
+		}
 
 		fgets(cline, 1024, ff0); strtok(cline, "\n"); // 22. 3D Laplacian filter mode
 		if (sscanf(cline, "%s %s", ctitle, cparam) != 2) throw std::runtime_error("Error reading 3D Laplacian filter mode from input parameter file.");
@@ -444,27 +527,33 @@ int main(int argc, char* argv[])
 		printf("\nBackground subtraction value for 3D potential or beta = %g (Volts)", dBackground);
 		printf("\nLower threshold level for 3D potential or beta = %g (Volts)", dThreshold);
 
-		fgets(cline, 1024, ff0); strtok(cline, "\n"); // 24. Peak localization mode
-		if (sscanf(cline, "%s %s", ctitle, cparam) != 2) throw std::runtime_error("Error reading peak localization mode from input parameter file.");
-		int imodePeaks = atoi(cparam);
-		switch (imodePeaks)
+		int imodePeaks(0);
+		double datomsizeXY, datomsizeZ;
+		if (!bXrayPar)
 		{
-		case 0:
-			printf("\nPeak localization in the 3D electrostatic potential or beta won't be applied.");
-			break;
-		case 1:
-			printf("\nPeak localization in the 3D electrostatic potential or beta will be applied.");
-			break;
-		default:
-			throw std::runtime_error("Error: unknown value for the peak localization mode in input parameter file.");
-		}
+			fgets(cline, 1024, ff0); strtok(cline, "\n"); // 24. Peak localization mode
+			if (sscanf(cline, "%s %s", ctitle, cparam) != 2) throw std::runtime_error("Error reading peak localization mode from input parameter file.");
+			imodePeaks = atoi(cparam);
+			switch (imodePeaks)
+			{
+			case 0:
+				printf("\nPeak localization in the 3D electrostatic potential or beta won't be applied.");
+				break;
+			case 1:
+				printf("\nPeak localization in the 3D electrostatic potential or beta will be applied.");
+				break;
+			default:
+				throw std::runtime_error("Error: unknown value for the peak localization mode in input parameter file.");
+			}
 
-		fgets(cline, 1024, ff0); strtok(cline, "\n"); // 25. Transverse and longitudinal side lengths for peak localization (in_UL)
-		if (sscanf(cline, "%s %s %s", ctitle, cparam ,cparam1) != 3) throw std::runtime_error("Error reading transverse and longitudinal side lengths for peak localization from input parameter file.");
-		double datomsizeXY = atof(cparam), datomsizeZ = atof(cparam1);
-		printf("\nTransverse and longitudinal side lengths for peak localization = %g %g (UL)", datomsizeXY, datomsizeZ);
-		if (imodePeaks && (int(datomsizeXY / zst + 0.5) < 2 || int(datomsizeZ / zst + 0.5) < 2))
-			throw std::runtime_error("Error: transverse and longitudinal side lengths for peak localization must be 2 x z_step or larger.");
+			fgets(cline, 1024, ff0); strtok(cline, "\n"); // 25. Transverse and longitudinal side lengths for peak localization (in_UL)
+			if (sscanf(cline, "%s %s %s", ctitle, cparam, cparam1) != 3) throw std::runtime_error("Error reading transverse and longitudinal side lengths for peak localization from input parameter file.");
+			datomsizeXY = atof(cparam);
+			datomsizeZ = atof(cparam1);
+			printf("\nTransverse and longitudinal side lengths for peak localization = %g %g (UL)", datomsizeXY, datomsizeZ);
+			if (imodePeaks && (int(datomsizeXY / xst + 0.5) < 2 || int(datomsizeZ / zst + 0.5) < 2))
+				throw std::runtime_error("Error: transverse and longitudinal side lengths for peak localization must be 2 x z_step or larger.");
+		}
 
 		fgets(cline, 1024, ff0); strtok(cline, "\n"); // 26. Output file name base in GRD or TIFF format
 		if (sscanf(cline, "%s %s", ctitle, cparam) != 2) throw std::runtime_error("Error reading output file name base from input parameter file.");
@@ -478,7 +567,57 @@ int main(int argc, char* argv[])
 		else if (GetFileExtension(filenamebaseOut) == string(".GRD")) bTIFFoutput = false;
 		else throw std::runtime_error("Error: output filename extension must be TIF ot GRD.");
 
-		fgets(cline, 1024, ff0); strtok(cline, "\n"); // 27. Save or not the sampling matrix in files
+		fgets(cline, 1024, ff0); strtok(cline, "\n"); // 27. Minimum-in, maximum-in and maximum-out for 16-bit TIFF output (all zeros trigger 32-bit_output)
+		if (sscanf(cline, "%s %s %s %s", ctitle, cparam, cparam1, cparam2) != 4) throw std::runtime_error("Error reading minimum-in, maximum-in and maximum-out for 16-bit TIFF output from input parameter file.");
+		float tiff16_minin = (float)atof(cparam);
+		float tiff16_maxin = (float)atof(cparam1);
+		long itiff16_maxout = atoi(cparam2);
+		bool bTIFF16out = (tiff16_minin == 0 && tiff16_maxin == 0 && itiff16_maxout == 0) ? false : true;
+		if (bTIFFoutput)
+		{
+			if (bTIFF16out)
+			{
+				printf("\nMin-in = %g, max-in = %g and max_out = %ld (for 16-bit TIFF file output).", tiff16_minin, tiff16_maxin, itiff16_maxout);
+				if (tiff16_minin >= tiff16_maxin || itiff16_maxout <= 0 || itiff16_maxout > 65535)
+					throw std::runtime_error("Unsuitable values for minimum-in, maximum-in or maximum-out for 16-bit TIFF output from input parameter file.");
+			}
+			else 
+				printf("\n32-bit (floating point) TIFF output file format will be used.");
+		}
+
+		fgets(cline, 1024, ff0); strtok(cline, "\n"); // 28. Euler rotation angles (Z, Y',Z") in degrees for 3D output
+		if (sscanf(cline, "%s %s %s %s", ctitle, cparam, cparam1, cparam2) != 4) throw std::runtime_error("Error reading Euler rotation angles for 3D output from input parameter file.");
+		double angleZout = -atof(cparam); // we multiply by (-1) here to make it consistent with the behaviour of ReadDefocusParameterFile(), ReadRelionParameterFile() and pdb.exe
+		double angleY1out = -atof(cparam1); // we multiply by (-1) here to make it consistent with the behaviour of ReadDefocusParameterFile(), ReadRelionParameterFile() and pdb.exe
+		double angleZ2out = -atof(cparam2); // we multiply by (-1) here to make it consistent with the behaviour of ReadDefocusParameterFile(), ReadRelionParameterFile() and pdb.exe
+		bool b3Drotout = (angleZout == 0 && angleY1out == 0 && angleZ2out == 0) ? false : true;
+		if (b3Drotout)
+			printf("\nReconstructed 3D potential or beta will be rotated by (%g, %g, %g) degrees for output.", angleZout, angleY1out, angleZ2out);
+		else
+			printf("\nReconstructed 3D potential or beta will NOT be rotated for output.");
+
+		fgets(cline, 1024, ff0); strtok(cline, "\n"); // 29. Make thick output slices: 0=no, 1=MIP, 2=averaging; slice thickness in UL
+		if (sscanf(cline, "%s %s %s", ctitle, cparam, cparam1) != 3) throw std::runtime_error("Error reading thick output slices info from input parameter file.");
+		int iThickSlicesOut = atoi(cparam);
+		double dOutSliceThickness = atof(cparam1);
+		int kThickStep = (int)lround(dOutSliceThickness / zst);
+		if (kThickStep <= 1) { kThickStep = 1;  iThickSlicesOut = 0; } // thick slices are actually thin
+		if (kThickStep > nz) kThickStep = int(nz); // there is only a single thick slice, as thick as the whole reconstructed volume
+		switch (iThickSlicesOut)
+		{
+		case 0: printf("\nOutput slices will have single-voxel thickness."); 
+			break;
+		case 1: 
+			printf("\nThick output slices will be obtained using MIP over %d voxels.", kThickStep); 
+			break;
+		case 2: 
+			printf("\nThick output slices will be obtained by averaging over %d voxels.", kThickStep); 
+			break;
+		default: 
+			throw std::runtime_error("Error: unknown value for thick output slices mode in input parameter file.");
+		}
+
+		fgets(cline, 1024, ff0); strtok(cline, "\n"); // 30. Save or not the sampling matrix in files
 		if (sscanf(cline, "%s %s", ctitle, cparam) != 2) throw std::runtime_error("Error reading save_or_not inverse sampling matrix switch from input parameter file.");
 		int nSaveDefocCAmpsOrSamplingMatrix = atoi(cparam);
 		if (nSaveDefocCAmpsOrSamplingMatrix == 1)
@@ -486,7 +625,7 @@ int main(int argc, char* argv[])
 		else
 			printf("\nSampling matrix will not be saved in files");
 
-		fgets(cline, 1024, ff0); strtok(cline, "\n"); // 28. Import and reprocess existing 3D potential or beta files
+		fgets(cline, 1024, ff0); strtok(cline, "\n"); // 31. Import and reprocess existing 3D potential or beta files
 		if (sscanf(cline, "%s %s", ctitle, cparam) != 2) throw std::runtime_error("Error reading import and reprocess existing 3D potential or beta files switch from input parameter file.");
 		int imode3DPotential = atoi(cparam);
 		switch (imode3DPotential)
@@ -520,7 +659,7 @@ int main(int argc, char* argv[])
 			if (c != 'y' && c != 'Y') exit(1);
 		}
 
-		fgets(cline, 1024, ff0); strtok(cline, "\n"); // // 29. Folder name for auxiliary files
+		fgets(cline, 1024, ff0); strtok(cline, "\n"); // // 32. Folder name for auxiliary files
 		if (sscanf(cline, "%s %s", ctitle, cparam) != 2) throw std::runtime_error("Error reading folder name for auxiliary files from input parameter file.");
 		string folderAux = cparam;
 		printf("\nFolder for auxiliary file output = %s", folderAux.c_str());
@@ -529,7 +668,7 @@ int main(int argc, char* argv[])
 		if (!std::filesystem::exists(folderAux))
 			throw std::runtime_error("Error: the specified auxiliary file folder does not seem to exist.");
 
-		fgets(cline, 1024, ff0); strtok(cline, "\n"); // 30. Number of parallel threads
+		fgets(cline, 1024, ff0); strtok(cline, "\n"); // 33. Number of parallel threads
 		if (sscanf(cline, "%s %s", ctitle, cparam) != 2) throw std::runtime_error("Error reading number of parallel threads from input parameter file.");
 		int nThreads = atoi(cparam);
 		printf("\nNumber of parallel threads = %d", nThreads);
@@ -577,8 +716,8 @@ int main(int argc, char* argv[])
 			}
 		}
 
-		string filenamebaseOutNew("BAD_STRING"), filenamebaseOutCAmp("BAD_STRING"), filenamebaseOutDefocCAmpOrFM("BAD_STRING"); // don't use it, unless it is redefined later
-		vector<string> voutfilenamesTot; // output filenames for the reconstructed 3D potential or beta
+		string filenamebaseOutNew("BAD_STRING"), filenamebaseOut16("BAD_STRING"), filenamebaseOutSMatrix("BAD_STRING"); // don't use it, unless it is redefined later
+		vector<string> voutfilenamesTot, voutfilenamesTotThick; // output filenames for the reconstructed 3D potential or beta
 		if (imode3DPotential) // output the the renormalized 3D potential or beta
 		{
 			std::filesystem::path apath(filenamebaseOut);
@@ -587,10 +726,16 @@ int main(int argc, char* argv[])
 			filenamebaseOutNew = folderAux + filenamebaseOutNew;
 			printf("\nOutput file name base for the renormalized 3D potential or beta = %s", filenamebaseOutNew.c_str());
 			FileNames(1, nz, filenamebaseOutNew, voutfilenamesTot); // create 1D array of output filenames to save 2D slices of the filtered and/or rescaled 3D object
+			filenamebaseOut16 = filenamebaseOutNew;
+			filenamebaseOut16.insert(filenamebaseOut16.find_last_of("."), "T");
+			FileNames(1, nz, filenamebaseOut16, voutfilenamesTotThick); // create 1D array of output filenames to save 2D slices of the filtered and/or rescaled 3D object in thick slices
 		}
 		else
 		{
 			FileNames(1, nz, filenamebaseOut, voutfilenamesTot); // create 1D array of output filenames to save 2D slices of the reconstructed 3D object
+			filenamebaseOut16 = filenamebaseOut;
+			filenamebaseOut16.insert(filenamebaseOut16.find_last_of("."), "T");
+			FileNames(1, nz, filenamebaseOut16, voutfilenamesTotThick); // create 1D array of output filenames to save 2D slices of the reconstructed 3D object in thick slices
 		}
 
 		vector<string> voutfilenamesPeaksTot; // output filenames for the peak-localized reconstructed 3D potential or beta
@@ -608,12 +753,12 @@ int main(int argc, char* argv[])
 		if (nSaveDefocCAmpsOrSamplingMatrix == 1) // create filenames for saving the sampling matrix
 		{
 			std::filesystem::path apath(filenamebaseOut);
-			filenamebaseOutDefocCAmpOrFM = apath.filename().string();
-			filenamebaseOutDefocCAmpOrFM.replace(filenamebaseOutDefocCAmpOrFM.find_last_of("."), filenamebaseOutDefocCAmpOrFM.length() - filenamebaseOutDefocCAmpOrFM.find_last_of("."), "FM.grd");
-			filenamebaseOutDefocCAmpOrFM = folderAux + filenamebaseOutDefocCAmpOrFM;
-			FileNames(nz, 1, filenamebaseOutDefocCAmpOrFM, voutfilenamesTotDefocCAmpOrFM);
+			filenamebaseOutSMatrix = apath.filename().string();
+			filenamebaseOutSMatrix.replace(filenamebaseOutSMatrix.find_last_of("."), filenamebaseOutSMatrix.length() - filenamebaseOutSMatrix.find_last_of("."), "FM.grd");
+			filenamebaseOutSMatrix = folderAux + filenamebaseOutSMatrix;
+			FileNames(nz, 1, filenamebaseOutSMatrix, voutfilenamesTotDefocCAmpOrFM);
 
-			printf("\nOutput file name base for sampling matrix = %s", filenamebaseOutDefocCAmpOrFM.c_str());
+			printf("\nOutput file name base for sampling matrix = %s", filenamebaseOutSMatrix.c_str());
 		}
 
 		//************************************ end creating vectors of input and output file names
@@ -628,9 +773,9 @@ int main(int argc, char* argv[])
 		if (!fftw_init_threads())
 			std::runtime_error("Error: multi-threaded initialization of FFTW library failed.");
 		// single Fftwd2c object is used for repeated 2D FFTs using FFTW later (the plan is created at this point and reused later)
-		Fftwd2c fftw2D((int)ny, (int)nx, 1, true); // we don't use mutlithreaded 2D FFT here, as the code calling these functions below is already mutlithreaded
+		Fftwd2fc fftw2Df((int)ny, (int)nx, 1, true); // we don't use mutlithreaded 2D FFT here, as the code calling these functions below is already mutlithreaded
 
-		XArray3D<float> K3out; // big 3D reconstructed array (needs to fit into RAM alongside with with everything else)
+		XArray3D<float> K3out; // big 3D reconstructed array (will be allocated after Samp3 matrix is truncated)
 
 		if (!imode3DPotential) // do phase retrieval and backpropagation prior to 3D filtering and output
 		{
@@ -688,7 +833,7 @@ int main(int argc, char* argv[])
 					vector<string> vinfilenames = vvinfilenames[na]; // input filenames of defocused images at the current illumination angle
 					vector<string> voutfilenames(nz);
 
-					XArray2D<double> int0; // input defocused intensity image
+					XArray2D<float> int0; // input defocused intensity image
 					double zout = vdefocus[0].b; // defocus distance
 
 					// read defocused images from files
@@ -707,14 +852,14 @@ int main(int argc, char* argv[])
 						if (nx0 < nx && ny0 <= ny || ny0 < ny && nx0 <= nx)
 						{
 							//printf("\nWARNING: 2D array from the image file will be padded with 1.0 to the array dimensions (Width = %zd, Height = %zd).", nx, ny);
-							XArray2DMove<double> tmp2(int0);
-							tmp2.Pad((ny - ny0) / 2, ny - ny0 - (ny - ny0) / 2, (nx - nx0) / 2, nx - nx0 - (nx - nx0) / 2, 1.0);
+							XArray2DMove<float> tmp2(int0);
+							tmp2.Pad((ny - ny0) / 2, ny - ny0 - (ny - ny0) / 2, (nx - nx0) / 2, nx - nx0 - (nx - nx0) / 2, 1.0f);
 							// NOTE that the reconstructed 3D volume will NOT be trimmed back before saving, as it gets too complicated and error prone
 						}
 						else if (nx0 > nx && ny0 >= ny || ny0 > ny && nx0 >= nx)
 						{
 							//printf("\nWARNING: 2D array from the image file will be trimmed to the array dimensions (Width = %zd, Height = %zd).", nx, ny);
-							XArray2DMove<double> tmp2(int0);
+							XArray2DMove<float> tmp2(int0);
 							tmp2.Trim((ny0 - ny) / 2, ny0 - ny - (ny0 - ny) / 2, (nx0 - nx) / 2, nx0 - nx - (nx0 - nx) / 2);
 							// NOTE that the reconstructed 3D volume will NOT be padded back before saving, as it does not seem to make sense
 						}
@@ -725,42 +870,39 @@ int main(int argc, char* argv[])
 					// NOTE that after the above trimming or padding, nx, ny, xlo, xhi, ylo, yhi parameters will correspond to those defined after parameter 7 above
 
 					// renormalize input data
-					if (dNormFactor1 != 1.0) int0 /= dNormFactor1;
-					if (dNormFactor2 != 0.0) int0 += dNormFactor2;
+					if (dNormFactor1 != 1.0) int0 /= float(dNormFactor1);
+					if (dNormFactor2 != 0.0) int0 += float(dNormFactor2);
 					if (int0.Norm(eNormMin) < 0)
 					{
 						//printf("\nWARNING: negative values in the input intensity file.");
-						int0.ThresholdLow(0.0, 0.0);
+						int0.ThresholdLow(0.0f, 0.0f);
 					}
-					//double averInt = int0.Norm(eNormAver);
-					//if (averInt == 0) throw std::runtime_error("Error: zero average value in the input file after normalization.");
-					//if (averInt != 1.0) int0 /= averInt; // enforce unit average intensity
 
 					// rotate input defocused image around Z'' back to zero angle
 					if (vdefocus[0].a != 0 || bRelion && (v2shifts[na].a != 0 || v2shifts[na].b != 0))
 					{
-						double aver = int0.NormAverEdge(5);
+						float aver = int0.NormAverEdge(5);
 						// shift along X and/or Y back to the unshifted position
 						if (bRelion && (v2shifts[na].a != 0 || v2shifts[na].b != 0))
 						{
-							XArray2DMove<double> xamove(int0);
+							XArray2DMove<float> xamove(int0);
 							xamove.Move((long)floor(-v2shifts[na].b / yst + 0.5), (long)floor(-v2shifts[na].a / xst + 0.5), aver);
 						}
 						// rotate input defocused complex amplitude around Z'' back to zero angle
 						if (vdefocus[0].a != 0)
 						{
-							XArray2D<double> vintTemp(int0);
-							XArray2DSpln<double> xaSpln(vintTemp);
-							xaSpln.Rotate(int0, -vdefocus[0].a, 0.5 * (yhi + ylo) + dyc, 0.5 * (xhi + xlo) + dxc, aver); // expecting uniform background
+							XArray2D<float> vintTemp(int0);
+							XArray2DSpln<float> xaSpln(vintTemp);
+							xaSpln.Rotate(int0, -vdefocus[0].a, yc, xc, aver); // expecting uniform background
 						}
 					}
 
 					// now do 2D CTF correction
-					XArray2D<dcomplex> K2four; // symmetrized backpropagated contrast in the reciprocal space
+					XArray2D<fcomplex> K2four; // symmetrized backpropagated contrast in the reciprocal space
 
 					if (bVerboseOutput) start_timeNow = std::chrono::system_clock::now();  // start of 2D FFT time
 
-					XA_IWFR<double> xa_iwfr;
+					XA_IWFR<float> xa_iwfr;
 					switch (iCTFcorrectionMode)
 					{
 					case 0: // no CTF correction
@@ -768,9 +910,9 @@ int main(int argc, char* argv[])
 					case 4: // 3D CTF correction later
 						//if (bVerboseOutput && iCTFcorrectionMode != 1) printf("\nCalculating 2D FFT of the input image ...");
 						int0.Log0(); // convert image intensity into ln(I / I_in), assuming I_in = 1.0 (after the flat field correction)
-						K2four = MakeComplex(int0, 0.0, false);
+						K2four = MakeComplex(int0, 0.0f, false);
 						K2four.Shuffle();
-						fftw2D.ForwardFFT(K2four);
+						fftw2Df.ForwardFFT(K2four);
 						K2four.Shuffle();
 						break;
 					case 1: // 2D TIE-Hom correction
@@ -778,20 +920,20 @@ int main(int argc, char* argv[])
 						{
 							//if (bVerboseOutput)	printf("\nApplying 2D TIE-Hom correction to the input image ...");
 							int0.Log0(); // convert image intensity into ln(I / I_in), assuming I_in = 1.0 (after the flat field correction)
-							K2four = MakeComplex(int0, 0.0, false);
+							K2four = MakeComplex(int0, 0.0f, false);
 							//normalization of the inverse 2D minus-Laplacian here corresponds to the normalization of the InvertCTF_DT1() function below
 							double alphatemp = -4.0 * PI * asigma / (zoutAver * wl); // asigma should be negative, so alpha is positive
 							double normtemp = -alphatemp * sqrt(1.0 + asigma * asigma) / asigma;
-							fftw2D.InverseMLaplacian1(K2four, alphatemp, normtemp);
+							fftw2Df.InverseMLaplacian1(K2four, alphatemp, normtemp);
 						}
 						break;
 					case 3: // 2D CTF correction
 						//if (bVerboseOutput) printf("\nApplying 2D CTF correction to the input image ...");
 						int0.Log0(); // convert image intensity into ln(I / I_in), assuming I_in = 1.0 (after the flat field correction)
 						if (bRelion)
-							xa_iwfr.InvertCTF_DT1(int0, K2four, fftw2D, zout, vastigm[na].a, vastigm[na].b * PI180, k2maxo, Cs3, Cs5, asigma, epsilon, bESCC, 1);
+							xa_iwfr.InvertCTF_DT2(int0, K2four, fftw2Df, zout, vastigm[na].a, vastigm[na].b * PI180, k2maxo, Cs3, Cs5, asigma, epsilon, bESCC, 1);
 						else
-							xa_iwfr.InvertCTF_DT1(int0, K2four, fftw2D, zout, 0, 0, k2maxo, Cs3, Cs5, asigma, epsilon, bESCC, 1);
+							xa_iwfr.InvertCTF_DT2(int0, K2four, fftw2Df, zout, 0, 0, k2maxo, Cs3, Cs5, asigma, epsilon, bESCC, 1);
 						// the output (K2four) is normalized as delta * 4 * PI * sqrt(1 + sigma^2) / wl / (xst * yst), the (xst * yst) term here is due to 2D DFT
 						break;
 					}
@@ -803,7 +945,7 @@ int main(int argc, char* argv[])
 					// Update 3D object at the current illumination direction on the Ewald sphere in 3D Fourier space
 					if (bVerboseOutput) start_timeNow = std::chrono::system_clock::now(); // start of back-propagation time
 					//if (bVerboseOutput) printf("\nUpdating 3D reconstructed object on the Ewald sphere ...");
-					CT_3Dgridding(K2four, V3, Samp3, angleY, angleZ, float(fxlo), float(fxst), float(fylo), float(fyst), float(fzlo), float(fzst), Fxc, Fyc, Fzc, wl, bRotCentreShift, bESCC);
+					CT_3Dgridding<float>(K2four, V3, Samp3, angleY, angleZ, float(fxlo), float(fxst), float(fylo), float(fyst), float(fzlo), float(fzst), Fxc, Fyc, Fzc, wl, bRotCentreShift, bESCC);
 					if (bVerboseOutput)
 					{
 						liBackPropTime += (long)std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now() - start_timeNow).count();
@@ -829,19 +971,6 @@ int main(int argc, char* argv[])
 			// renormalization for the detected sampling and noise filtering
 			printf("\n\nNormalizing for the detected sampling and applying noise filter ...");
 			dInputNSR *= sqrt(nx * ny); // change of the STD of noise after the 2D DFT; later it will be multiplied by sqrt(Samp3)
-#if 0
-			//@@@@@@@@@@@@@@@@@@@@@@@@@!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!  start of temporary test code
-			K3out = Abs(V3);
-			XArData::WriteFileStackGRD(K3out, voutfilenamesTot, eGRDBIN);
-			Samp3.SetHeadPtr(new Wavehead3D(wl, zlo, zhi, ylo, yhi, xlo, xhi));
-			//CTFcorrectedNoise.SetHeadPtr(new Wavehead3D(wl, zlo, zhi, ylo, yhi, xlo, xhi));
-			Samp3 ^= 0.5f;
-			//Samp3 *= CTFcorrectedNoise;
-			Samp3 *= float(dInputNSR);
-			XArData::WriteFileStackGRD(Samp3, voutfilenamesTotDefocCAmpOrFM, eGRDBIN);
-			exit(-22);
-			//@@@@@@@@@@@@@@@@@@@@@@@@@!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! end of temporary test code
-#endif
 			if (dInputNSR == 0) // the case of noise-free input images
 			{
 				#pragma omp parallel for shared (V3, Samp3)
@@ -863,6 +992,7 @@ int main(int argc, char* argv[])
 				{
 				case 0: // noise filtering in the case of no CTF correction
 				case 2: // noise filtering in the case of 3D TIE-Hom correction later
+				case 3: // noise filtering in the case of 2D CTF correction - somehow this version of noise filtering seems to be working the best for this case
 				case 4: // noise filtering in the case of 3D CTF correction later
 					// we want abs(V3) >  sqrt(2) * dInputNSR * sqrt(nx * ny) * sqrt(F), i.e. (signal + noise)^2 > 2 * variance(noise)
 					#pragma omp parallel for shared (V3, Samp3)
@@ -880,6 +1010,8 @@ int main(int argc, char* argv[])
 							}
 					}
 					break;
+				// tests appear to indicate that noise filtering using the simple algorithm above works very similar to the following algortithm for case 1
+				// with very small epsilon. If epsilon is increased below, the filtering actually becomes less severe (i.e. the output images become noisier)
 				case 1: // noise filtering in the case of 2D TIE-Hom correction
 					{
 						double norm = sqrt(1.0 + asigma * asigma) * dInputNSR;
@@ -906,7 +1038,7 @@ int main(int argc, char* argv[])
 									if (x == 0) { V3[k][j][i] = 0.0f; continue; }
 
 									i1 = i - nxd2;
-									fInputNSR = float(norm * sqrt(x) / (dksi2 * i1 * i1 + eta2)); // dInputNSR is contained in the "norm" term
+									fInputNSR = float(norm * sqrt(x) / (dksi2 * i1 * i1 + eta2 + epsilon)); // dInputNSR is contained in the "norm" term
 
 									y = abs(V3[k][j][i]) / fInputNSR; // SNR in this Fourier coefficient
 									V3[k][j][i] *= (1 / x) * (0.5f + atan(100.0f * (y - fTargetSNR)) / PIf); // suppress V3 elements with SNR < TargetSNR
@@ -916,6 +1048,8 @@ int main(int argc, char* argv[])
 						}
 					}
 					break;
+				/*
+				// tests appear to indicate that noise filtering using the simple algorithm above (case 0:) works better than the following more accurate algorithm
 				case 3: // noise filtering in the case of 2D CTF correction
 					{
 						double omega = atan(asigma);
@@ -954,6 +1088,7 @@ int main(int argc, char* argv[])
 						}
 					}
 					break;
+				*/
 				}
 			} // end of noisy input images 3D filtration case
 
@@ -1018,23 +1153,31 @@ int main(int argc, char* argv[])
 			fft3f.GetRealXArray3D(K3out, true);
 			fft3f.Cleanup(); // free memory
 
-			// compensation for the "reverse cupping" artefact
-			double dtemp = 2.0 / double(nzd2 * nzd2 + nyd2 * nyd2 + nxd2 * nxd2);
+			// suppression of points outside the reconstruction sphere and compensation for the "reverse cupping" artefact
+			index_t nxR2 = (ic <= nxd2) ? ic * ic : (nx - ic) * (nx - ic);
+			index_t nyR2 = (jc <= nyd2) ? jc * jc : (ny - jc) * (ny - jc);
+			index_t nzR2 = (kc <= nzd2) ? kc * kc : (nz - kc) * (nz - kc);
+			index_t nR2;
+			if (bRotYonly) nR2 = std::min(nxR2, nzR2);
+			else if (bRotZonly || bRotZ2only) nR2 = std::min(nxR2, nyR2);
+			else nR2 = std::min(min(nxR2, nyR2), nzR2);
+			double dtemp = 2.0 / double(kc * kc + jc * jc + ic * ic);
 			#pragma omp parallel for
 			for (int k = 0; k < nz; k++)
 			{
-				int k1, j1, i1;
-				double zeta2, eta2;
-				k1 = k - nzd2;
-				zeta2 = k1 * k1;
-				for (int j = 0; j < ny; j++)
+				index_t kk2(0), jj2, ii2;
+				if (!bRotZonly && !bRotZ2only) kk2 = (k - kc) * (k - kc); // if the rotation is around Z or Z" axis only, the Z extent of the reconstructed volume should not be limited
+				for (index_t j = 0; j < ny; j++)
 				{
-					j1 = j - nyd2;
-					eta2 = j1 * j1 + zeta2;
-					for (int i = 0; i < nx; i++)
+					if (!bRotYonly) jj2 = (j - jc) * (j - jc) + kk2; // if the rotation is around Y axis only, the Y extent of the reconstructed volume should not be limited
+					else jj2 = kk2;
+					for (index_t i = 0; i < nx; i++)
 					{
-						i1 = i - nxd2;
-						K3out[k][j][i] *= float(exp(dtemp * (i1 * i1 + eta2)));
+						ii2 = (i - ic) * (i - ic) + jj2;
+						if (ii2 > nR2)
+							K3out[k][j][i] = 0.0f;
+						else
+							K3out[k][j][i] *= float(exp(dtemp * ii2));
 					}
 				}
 			}
@@ -1079,13 +1222,23 @@ int main(int argc, char* argv[])
 
 					index_t ny0 = ipIn.GetDim1();
 					index_t nx0 = ipIn.GetDim2();
-					if (nx0 < nx || ny0 < ny) // there seems to be no need to allow padding when re-processing previously reconstructed 3D distributions
-						throw std::runtime_error("Error: the dimensions of the 2D array in the image file are smaller than the array dimensions in Width Height HeaderLength Endianness ElementLength line from input parameter file.");
-					else if (nx0 > nx || ny0 > ny)
+					if (nx0 != nx || ny0 != ny)
 					{
-						printf("\nWARNING: 2D array from the image file will be trimmed to the array dimensions Width = %zd Height = %zd from input parameter file", nx, ny);
-						XArray2DMove<float> tmp2(ipIn);
-						tmp2.Trim((ny0 - ny) / 2, ny0 - ny - (ny0 - ny) / 2, (nx0 - nx) / 2, nx0 - nx - (nx0 - nx) / 2);
+						if (nx0 < nx && ny0 <= ny || ny0 < ny && nx0 <= nx)
+						{
+							//printf("\nWARNING: 2D array from the image file will be padded with 0.0 to the array dimensions (Width = %zd, Height = %zd).", nx, ny);
+							XArray2DMove<float> tmp2(ipIn);
+							tmp2.Pad((ny - ny0) / 2, ny - ny0 - (ny - ny0) / 2, (nx - nx0) / 2, nx - nx0 - (nx - nx0) / 2, 0.0);
+						}
+						else if (nx0 > nx && ny0 >= ny || ny0 > ny && nx0 >= nx)
+						{
+							//printf("\nWARNING: 2D array from the image file will be trimmed to the array dimensions (Width = %zd, Height = %zd).", nx, ny);
+							XArray2DMove<float> tmp2(ipIn);
+							tmp2.Trim((ny0 - ny) / 2, ny0 - ny - (ny0 - ny) / 2, (nx0 - nx) / 2, nx0 - nx - (nx0 - nx) / 2);
+							// NOTE that the reconstructed 3D volume will NOT be padded back before saving, as it does not seem to make sense
+						}
+						else
+							throw std::runtime_error("Error: the dimensions of the 2D array in the image file are inconsistent with the array dimensions in input parameter file (both dimensions should be equal, smaller or larger simultaneously).");
 					}
 
 					//if (dNormFactor1 != 1.0) ipIn /= dNormFactor1;
@@ -1151,12 +1304,96 @@ int main(int argc, char* argv[])
 			K3out.ThresholdLow((float)dBackground, (float)dThreshold);
 		}
 
-		// output the 3D array
-		printf("\n\nSaving the reconstructed 3D object into output files %s, etc. ...", voutfilenamesTot[0].c_str());
-		if (bVerboseOutput) start_timeNow = std::chrono::system_clock::now(); // start of file write time
-		if (bTIFFoutput) TIFFWriteFileStack(K3out, voutfilenamesTot, eTIFF32);
-		else XArData::WriteFileStackGRD(K3out, voutfilenamesTot, eGRDBIN);
-		if (bVerboseOutput) liFileWriteTime += (long)std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now() - start_timeNow).count();
+		// rotate the 3D array for output if required
+		if (b3Drotout)
+		{
+			XArray3D<float> K3outRot(K3out);
+			XArray3DSpln<float> xa3spln(K3outRot);
+			printf("\nRotating around Z by %g (deg), around Y' by %g (deg) and around Z'' by %g (deg) ...", angleZout, angleY1out, angleZ2out);
+			// this corresponds to the same resultant rotation as in pdb_run.cpp
+			xa3spln.Rotate3(K3out, angleZout * PI180, angleY1out * PI180, angleZ2out * PI180, nThreads);
+		}
+
+		// save the 3D array in files
+		if (true) // the following code is encapsulated in a {} block, so that temporary variables could be deleted by their destructors
+		{
+			// create thick slices if required
+			XArray3D<float> K3outThick;
+			if (iThickSlicesOut > 0)
+			{
+				printf("\nCreating thick output slices ...");
+				index_t nz1 = int(nz / kThickStep);
+				K3outThick.Resize(nz1, ny, nx);
+				K3outThick.SetHeadPtr(new xar::Wavehead3D(wl, zlo, zhi, ylo, yhi, xlo, xhi));
+				#pragma omp parallel for
+				for (int j = 0; j < ny; j++)
+				{
+					index_t k;
+					float ftemp;
+					for (index_t i = 0; i < nx; i++)
+						for (index_t k1 = 0; k1 < nz1; k1++)
+						{
+							k = k1 * kThickStep;
+							ftemp = K3out[k][j][i];
+							if (iThickSlicesOut == 1) // MIP
+							{
+								for (index_t n = 1; n < kThickStep; n++) if (K3out[k + n][j][i] > ftemp) ftemp = K3out[k + n][j][i];
+							}
+							else // averaging over the slice thickness
+							{
+								for (index_t n = 1; n < kThickStep; n++)  ftemp += K3out[k + n][j][i];
+								ftemp /= float(kThickStep);
+							}
+							K3outThick[k1][j][i] = ftemp;
+						}
+				}
+			}
+
+			printf("\n\nSaving the reconstructed 3D object into output files %s, etc. ...", voutfilenamesTot[0].c_str());
+			if (bVerboseOutput) start_timeNow = std::chrono::system_clock::now(); // start of file write time
+
+			index_t nz1 = iThickSlicesOut > 0 ? K3outThick.GetDim1() : nz;
+			if (nz1 != nz) voutfilenamesTotThick.resize(nz1); 
+
+			if (bTIFFoutput)
+			{
+				if (bTIFF16out) // 16-bit TIFF output
+				{
+					// create rescaled 16-bit data
+					float dPropConst = float(itiff16_maxout) / (tiff16_maxin - tiff16_minin);
+					float* p3 = iThickSlicesOut > 0 ? &K3outThick[0][0][0] : &K3out[0][0][0];
+					XArray3D<long> K3outInt(nz1, ny, nx);
+					#pragma omp parallel for
+					for (int k = 0; k < nz1; k++)
+					{
+						index_t kk = k * nxny;
+						float* p3a;
+						for (index_t j = 0; j < ny; j++)
+						{
+							p3a = p3 + kk + j * nx;
+							for (index_t i = 0; i < nx; i++)
+							{
+								if (*(p3a + i) < tiff16_minin) K3outInt[k][j][i] = 0;
+								else if (*(p3a + i) > tiff16_maxin) K3outInt[k][j][i] = itiff16_maxout;
+								else K3outInt[k][j][i] = lround(dPropConst * (*(p3a + i) - tiff16_minin));
+							}
+						}
+					}
+					TIFFWriteFileStack(K3outInt, voutfilenamesTotThick, eTIFF16, false); // re-scaled 16-bit, possibly thick, slices
+				}
+				else // 32-bit TIFF output
+				{
+					if (iThickSlicesOut > 0) TIFFWriteFileStack(K3outThick, voutfilenamesTotThick, eTIFF32); // 32-bit thick slices
+				}
+				TIFFWriteFileStack(K3out, voutfilenamesTot, eTIFF32); // 32-bit thin slices are saved in any case
+			}
+			else // GRD output
+			{
+				if (iThickSlicesOut > 0) XArData::WriteFileStackGRD(K3outThick, voutfilenamesTotThick, eGRDBIN); // thick slices
+				XArData::WriteFileStackGRD(K3out, voutfilenamesTot, eGRDBIN); // thin slices are saved in any case
+			}
+			if (bVerboseOutput) liFileWriteTime += (long)std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now() - start_timeNow).count();
+		}
 
 		// find peaks in the reconstructed 3D distribution
 		if (imodePeaks)

@@ -174,6 +174,7 @@
     <Text Include="UTR.txt" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="..\..\..\XArray_tests\XArrayLibrary\fftwd2fc.cpp" />
     <ClCompile Include="..\..\XArrayLibrary\fftwd2c.cpp" />
     <ClCompile Include="..\..\XArrayLibrary\fftwd3drc.cpp" />
     <ClCompile Include="..\..\XArrayLibrary\fftwd3frc.cpp" />
@@ -209,6 +210,8 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\..\..\XArray_tests\MultisliceCppTest\PhaseRetrieval\FindPeaks.h" />
+    <ClInclude Include="..\..\..\XArray_tests\XArrayLibrary\fftwd2fc.h" />
     <ClInclude Include="..\..\fftwlib\fftw3.h" />
     <ClInclude Include="..\..\TemsimLibrary\pdb.h" />
     <ClInclude Include="..\..\XArrayLibrary\fftwd2c.h" />

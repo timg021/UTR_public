@@ -146,6 +146,8 @@ namespace xar
 		XArray3D(index_t iDim1, index_t iDim2, index_t iDim3, T tVal = T());
 		//! Promotion from vector
 		XArray3D(const vector<T>& rXArB, index_t iDim1, index_t iDim2, index_t iDim3);
+		//! Move promotion from vector
+		XArray3D(vector<T>&& rXArB, index_t iDim1, index_t iDim2, index_t iDim3);
 		//! Copy constructor
 		XArray3D(const XArray3D<T>& rXArray3D);
 		//! Move constructor
@@ -305,6 +307,17 @@ namespace xar
 		m_iDim3 = iDim3;
 	}
 
+	//! Move promotion from vector
+	template <class T> XArray3D<T>::XArray3D(vector<T>&& va, index_t iDim1, index_t iDim2, index_t iDim3)
+		: XArray<T>(std::move(va))
+	{
+		if (iDim1 < 0 || iDim2 < 0 || iDim3 < 0)
+			throw std::invalid_argument("invalid_argument 'iDim1, iDim2 or iDim3' in XArray3D<T>::XArray3D (negative dimension)");
+		m_iDim1 = iDim1;
+		m_iDim2 = iDim2;
+		m_iDim3 = iDim3;
+	}
+
 	//! Copy constructor
 	template <class T> XArray3D<T>::XArray3D(const XArray3D<T>& xa3)
 		: XArray<T>(xa3)
@@ -323,28 +336,6 @@ namespace xar
 		m_iDim3 = xa3.m_iDim3;
 	}
 
-	//! Accepts an external memory buffer with its contents and makes it the internal 3D array (head does not change)
-/*
-	template <class T> void XArray3D<T>::AcceptMemBuffer(T* ptBufBegin, index_t iDim1, index_t iDim2, index_t iDim3)
-	{
-		if (iDim1 < 0 || iDim2 < 0 || iDim3 < 0)
-			throw std::invalid_argument("invalid_argument 'iDim1, iDim2 or iDim3' in XArray3D<T>::AcceptMemBuffer (negative dimension)"); 
-		(*this).acceptMemBuffer(ptBufBegin, iDim1 * iDim2 * iDim3);
-		m_iDim1 = iDim1;
-		m_iDim2 = iDim2;
-		m_iDim3 = iDim3;
-	}
-
-	//! Relinquishes the responsibility for the memory area occupied by the internal 3D array  (head is deleted)
-	template <class T> void XArray3D<T>::ReleaseMemBuffer()
-	{
-		(*this).releaseMemBuffer(); 
-		XArray<T>::SetHeadPtr(0);
-		m_iDim1 = 0;
-		m_iDim2 = 0;
-		m_iDim3 = 0;
-	}
-*/
 	//! Changes the size of the array and fills the NEW elements with a given value (head is not affected)
 	// Call non-member function ResizeH if the head should be resized as well
 	template <class T> void XArray3D<T>::Resize(index_t iDim1, index_t iDim2, index_t iDim3, T val)
