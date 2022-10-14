@@ -145,7 +145,8 @@ namespace xar
 	//! File types for which I/O operations have been implemented for XArray template classes
 	enum _eFileType
 	{ 
-		eFTUnknown, eHDF5, eVODBIN, eVODASC, eGRDBIN, eGRDASC, eGRCBIN, eGRCASC, eTIFF8, eTIFF16, eTIFF32, eJPEG, eJP2_8, eJP2_16, ePNG8, ePNG16, eBMP, eDAT, eFTMax 
+		eFTUnknown, eHDF5, eVODBIN, eVODASC, eGRDBIN, eGRDASC, eGRCBIN, eGRCASC, eTIFF8, eTIFF16, eTIFF32, eDICOM8, eDICOM16, 
+		eJPEG, eJP2_8, eJP2_16, ePNG8, ePNG16, eBMP, eDAT, eFTMax
 	};
 	//! Various norms (metrics) of XArrays
 	enum _eNormID

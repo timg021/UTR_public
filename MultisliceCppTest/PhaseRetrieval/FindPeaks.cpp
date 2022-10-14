@@ -101,7 +101,6 @@ int FindPeaks(XArray3D<float>& xar3D, double datomsizeXY, double datomsizeZ, int
 	if (natom == 0) printf("\n\n!!WARNING: no peaks have been found!");
 	else
 	{
-
 		// create vectors of peak location coordinates
 		xa.resize(natom); ya.resize(natom); za.resize(natom);
 		vector<Pair2> K3maxPair(natom);
@@ -109,7 +108,7 @@ int FindPeaks(XArray3D<float>& xar3D, double datomsizeXY, double datomsizeZ, int
 		{
 			xa[n] = float(xlo + xst * vimax[n]);
 			ya[n] = float(ylo + yst * vjmax[n]);
-			za[n] = float(zst * vkmax[n]);
+			za[n] = float(zlo + zst * vkmax[n]);
 			K3maxPair[n].v = xar3D[vkmax[n]][vjmax[n]][vimax[n]];
 			K3maxPair[n].n = n;
 		}

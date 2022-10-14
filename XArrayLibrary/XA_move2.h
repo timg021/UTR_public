@@ -99,6 +99,8 @@ namespace xar
 		void Pad2N(T tPadVal);
 		//! Replaces elements at the edges of the array using a given value 
 		void Mask(index_t iYLeft, index_t iYRight, index_t iXLeft, index_t iXRight, T tMaskVal);
+		//! Replaces elements at the edges of the array using a given value, with a smooth transition
+		void MaskSmooth(index_t iPix, double dSteepness, T tMaskVal);
 		//! Moves elements of the array and fills the vacated positions with a given value
 		void Move(long lngMoveYPoints, long lngMoveXPoints, T tFillVal);
 		//! Fills a rectangular subarray with a given value
@@ -482,6 +484,60 @@ namespace xar
 			}
 		}
 	}
+
+
+	//---------------------------------------------------------------------------
+	//Function XArray2DMove<T>:: MaskSmooth(index_t iPix, T tMaskVal)
+	//
+	//	Replaces elements at the edges of the array using a given value with a smooth transition 
+	//
+	/*!
+		\brief		Replaces elements at the edges of the array using a given value
+		\param		iPix	number of elements to be modified at the edges
+		\param		dSteepness	parameter controlling the steepness of transition to tMaskVal (normally between 1 and 100)
+		\param		tMaskVal	the value to be assigned to all masked elements
+		\return		\a None
+		\par		Description:
+					This function 'masks' the defined number of elements at the left, right
+					top and bottom edges of the XArray2D<T> object by modifying them towards 
+					a given value, with a smooth transition; the head is not affected
+	*/
+	template <class T> void XArray2DMove<T>::MaskSmooth(index_t iPix, double dSteepness, T tMaskVal) 
+	{
+		if (iPix <= 0) return;
+
+		//int idist, jdist;
+		int idist2, jdist2;
+		index_t ny = m_rXArray2D.GetDim1();
+		index_t nx = m_rXArray2D.GetDim2();
+		int ny2 = int(ny / 2), nx2 = int(nx / 2);
+		//int ny1 = int(ny - 1), nx1 = int(nx - 1);
+		int iPix2 = int(0.5 * iPix + 0.5);
+		int iRad = min(nx2 - iPix2, ny2 - iPix2); // radius length of the "transition" line
+		double aPI = 1.0 / PI;
+		double fact;
+
+		if (iPix * 2 > m_rXArray2D.GetDim2() || iPix * 2 > m_rXArray2D.GetDim1())
+			m_rXArray2D.Fill(tMaskVal);
+		else
+		{
+			for (int j = 0; j < ny; j++)
+			{
+				//jdist = min(j, ny1 - j);
+				jdist2 = (j - ny2) * (j - ny2);
+				for (int i = 0; i < nx; i++)
+				{
+					//idist = min(jdist, min(i, nx1 - i));
+					//if (idist > iPix) continue;
+					//fact = 0.5 + aPI * atan(dSteepness * (idist - iPix2));
+					idist2 = int(0.5 + sqrt(jdist2 + (i - nx2) * (i - nx2)));
+					fact = 0.5 + aPI * atan(dSteepness * (idist2 - iRad));
+					m_rXArray2D[j][i] = m_rXArray2D[j][i] * T(1.0 - fact) + tMaskVal * T(fact);
+				}
+			}
+		}
+	}
+
 
 	//---------------------------------------------------------------------------
 	//Function XArray2DMove<T>::Move

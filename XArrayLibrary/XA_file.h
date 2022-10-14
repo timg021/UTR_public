@@ -27,7 +27,23 @@
 #include <cstring>
 
 #if defined WINDOWS_OS_TEG
-#include <io.h>
+	#include <io.h>
+	#include <windows.h>
+	inline unsigned long long getAvailableMemory()
+	{
+		MEMORYSTATUSEX status;
+		status.dwLength = sizeof(status);
+		GlobalMemoryStatusEx(&status);
+		return status.ullAvailPhys;
+	}
+#else
+	#include <sys/sysinfo.h>
+	inline unsigned long long getAvailableMemory()
+	{
+		struct sysinfo si;
+		sysinfo(&si);
+		return (unsigned long long)si.freeram;
+	}
 #endif
 
 
@@ -222,7 +238,7 @@ fprintf("a=%d", a);
 	index_t ReadSpectrumFile(const string strSpectrumFilename, vector<float>& vOutEnergies, vector<float>& vOutCounts);
 	void ReadDefocusParamsFile(string difile, vector<Pair>& v2angles, vector<vector<Pair> >& vvdefocus, bool bVerboseOutput = true);
 	void ReadRelionDefocusParamsFile(string difile, vector<Pair>& v2angles, vector<vector<Pair> >& vvdefocus, vector<Pair>& vastigm, vector<Pair>& v2shifts, bool bVerboseOutput = true);
-	void FileNames(index_t nangles, index_t ndefocus, string filenamebase, vector<string>& output);
+	void FileNames(index_t nangles, index_t ndefocus, string filenamebase, vector<string>& output, bool OneBased = false);
 	void FileNames2(vector<index_t> vndefocus, string filenamebase, vector<string>& output);
 
 } // namespace xar closed

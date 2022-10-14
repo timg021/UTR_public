@@ -686,7 +686,7 @@ void xar::ReadRelionDefocusParamsFile(string difile, vector<Pair>& v2angles, vec
 }
 
 
-void xar::FileNames(index_t nangles, index_t ndefocus, string filenamebase, vector<string>& output)
+void xar::FileNames(index_t nangles, index_t ndefocus, string filenamebase, vector<string>& output, bool OneBased)
 // Creates a sequence of file names properly indexed by rotation angles and defocus distances (using the same algorithm as in MultisliceK.cpp)
 {
 	if (ndefocus < 1 || nangles < 1)
@@ -719,9 +719,18 @@ void xar::FileNames(index_t nangles, index_t ndefocus, string filenamebase, vect
 		for (index_t j = 0; j < ndefocus; j++)
 		{
 			outfilename_j = filenamebase;
-			if (ndefocus == 1 && nangles > 1) sprintf(buffer, myformat.data(), i);
-			else if (ndefocus > 1 && nangles == 1) sprintf(buffer, myformat.data(), j);
-			else sprintf(buffer, myformat.data(), j, i);
+			if (OneBased) // numbering starts from 1
+			{ 
+				if (ndefocus == 1 && nangles > 1) sprintf(buffer, myformat.data(), i + 1);
+				else if (ndefocus > 1 && nangles == 1) sprintf(buffer, myformat.data(), j + 1);
+				else sprintf(buffer, myformat.data(), j + 1, i + 1);
+			}
+			else // numbering starts from 0
+			{
+				if (ndefocus == 1 && nangles > 1) sprintf(buffer, myformat.data(), i);
+				else if (ndefocus > 1 && nangles == 1) sprintf(buffer, myformat.data(), j);
+				else sprintf(buffer, myformat.data(), j, i);
+			}
 			outfilename_j.insert(i_dot, buffer);
 			output[i * ndefocus + j] = outfilename_j;
 		}

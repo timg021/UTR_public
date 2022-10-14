@@ -69,6 +69,21 @@
     <ClCompile Include="..\..\XArrayLibrary\XArray.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="MultisliceT.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\XArrayLibrary\Oourafft.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\XArrayLibrary\XA_spln2.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\XArrayLibrary\XA_fft2.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\XArrayLibrary\fftwd2fc.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\XArrayLibrary\IXAHead.h">
@@ -150,6 +165,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\..\fftwlib\fftw3.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\XArrayLibrary\fftwd2fc.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

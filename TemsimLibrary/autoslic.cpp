@@ -350,9 +350,9 @@ void autoslic::calculate(cfpix &pix, cfpix &wave0, cfpix &depthpix,
     trans.resize( nx, ny );
     wave.resize( nx, ny );
 
-    if( (lstart == 0) || (nx!= wave0.nx()) || (ny!=wave0.ny()) ) {
-             wave = 1.0F;  
-    } else { wave = wave0; }
+    //if( (lstart == 0) || (nx!= wave0.nx()) || (ny!=wave0.ny()) ) {
+    //         wave = 1.0F;  
+    //} else { wave = wave0; }
 
 	//@@@@@ start TEG code
 	// if a suitable FTTW plan has been already prepared, there is no need to recalculate it in these "init" functions
@@ -360,14 +360,12 @@ void autoslic::calculate(cfpix &pix, cfpix &wave0, cfpix &depthpix,
 	if (nfftwinit)
 	{
 		trans.init();
-		wave.copyInit( trans );   //  must be after "wave = wave0"
+		wave.copyInit( trans );  
 	}
-	//else trans.setPlan(pplanTf, pplanTi, pinitLevel);
-    //trans.init();
-	//wave.copyInit( trans );   //  must be after "wave = wave0"
+    wave = wave0;
 	// end TEG code
     
-    if( lcross == 1 ) {
+    if( lcross == 1 ) {  
         /* nz may be too small with thermal vibrations so add a few extra */
         nz = (int) ( (zmax-zmin)/ deltaz + 3.5);
         depthpix.resize( nx, nz );
@@ -664,7 +662,8 @@ void autoslic::calculate(cfpix &pix, cfpix &wave0, cfpix &depthpix,
 /* ---- start coherent method below ----------------
         (remember that waver,i[][] was initialize above) */
 
-    } else { //!!! This is the beginning of the lpartl == 0 branch of temsim code, which is the only branch that TEG code is currently using 
+    } 
+    else { //!!! This is the beginning of the lpartl == 0 branch of temsim code, which is the only branch that TEG code is currently using 
 
         if( lbeams ==1 ) {
             nzbeams = (int) ( (zmax-zmin)/ deltaz + 3.5);
@@ -798,29 +797,33 @@ void autoslic::calculate(cfpix &pix, cfpix &wave0, cfpix &depthpix,
 				wave.ifft();
 			}
 
-            /* save depth cross section if requested */
-            if( (lcross == 1) && (islice<=nz) ) {
-                for( ix=0; ix<nx; ix++) {
-                    depthpix.re(ix, islice-1) = 
-                        wave.re(ix,iycross)*wave.re(ix,iycross)
-                           + wave.im(ix,iycross)*wave.im(ix,iycross);
+            //@@@@@ TEG disabled the following piece of code
+            if (0)
+            {
+                /* save depth cross section if requested */
+                if ((lcross == 1) && (islice <= nz)) {
+                    for (ix = 0; ix < nx; ix++) {
+                        depthpix.re(ix, islice - 1) =
+                            wave.re(ix, iycross) * wave.re(ix, iycross)
+                            + wave.im(ix, iycross) * wave.im(ix, iycross);
+                    }
+                    nzout = islice;
                 }
-                nzout = islice;
-            }
 
-            sum = 0.0;
-            for( ix=0; ix<nx; ix++) {
-                for( iy=0; iy<ny; iy++)
-                    sum += wave.re(ix,iy)*wave.re(ix,iy) +
-                        wave.im(ix,iy)*wave.im(ix,iy);
-            }
-            sum = sum * scale;
+                sum = 0.0;
+                for (ix = 0; ix < nx; ix++) {
+                    for (iy = 0; iy < ny; iy++)
+                        sum += wave.re(ix, iy) * wave.re(ix, iy) +
+                        wave.im(ix, iy) * wave.im(ix, iy);
+                }
+                sum = sum * scale;
 
-            sbuffer= "z= " + toString(zslice)+" A, " + toString(nbeams) + " beams, "
-                    + toString(na)+" coord., \n"
-                    + "     aver. phase= "+toString(phirms)
-                    +", total intensity = "+toString(sum) ;
-            //messageAS( sbuffer );
+                sbuffer = "z= " + toString(zslice) + " A, " + toString(nbeams) + " beams, "
+                    + toString(na) + " coord., \n"
+                    + "     aver. phase= " + toString(phirms)
+                    + ", total intensity = " + toString(sum);
+                //messageAS( sbuffer );
+            }
 
             zslice += deltaz;
             istart += na;

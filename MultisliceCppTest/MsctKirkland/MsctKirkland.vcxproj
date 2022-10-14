@@ -87,7 +87,7 @@
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <AdditionalLibraryDirectories>$(SolutionDir)..\fftwlib\Release_Libs;$(OutDir)..\..\MsctKirkland\x64\Release;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>fftw3f.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>fftw3_omp.lib;fftw3f_omp.lib;fftw3f.lib;fftw3.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalOptions>/NODEFAULTLIB:libcmt.lib %(AdditionalOptions)</AdditionalOptions>
     </Link>
   </ItemDefinitionGroup>
@@ -115,7 +115,7 @@
     <Link>
       <SubSystem>Console</SubSystem>
       <AdditionalLibraryDirectories>$(SolutionDir)..\fftwlib\Debug_Libs;$(OutDir)..\..\MsctKirkland\x64\Debug;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>fftw3f.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>fftw3_omp.lib;fftw3f_omp.lib;fftw3.lib;fftw3f.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalOptions>/NODEFAULTLIB:libcmtd.lib %(AdditionalOptions)</AdditionalOptions>
     </Link>
   </ItemDefinitionGroup>
@@ -142,7 +142,9 @@
     <ClCompile Include="..\..\TemsimLibrary\floatTIFF.cpp" />
     <ClCompile Include="..\..\TemsimLibrary\pdb.cpp" />
     <ClCompile Include="..\..\TemsimLibrary\slicelib.cpp" />
+    <ClCompile Include="..\..\XArrayLibrary\fftwd2fc.cpp" />
     <ClCompile Include="..\..\XArrayLibrary\IXAHWave.cpp" />
+    <ClCompile Include="..\..\XArrayLibrary\Oourafft.cpp" />
     <ClCompile Include="..\..\XArrayLibrary\Ooura_fftsg2d_dbl.c" />
     <ClCompile Include="..\..\XArrayLibrary\Ooura_fftsg2d_flt.c" />
     <ClCompile Include="..\..\XArrayLibrary\Ooura_fftsg_dbl.c" />
@@ -150,9 +152,15 @@
     <ClCompile Include="..\..\XArrayLibrary\stdafx.cpp" />
     <ClCompile Include="..\..\XArrayLibrary\XAHWave.cpp" />
     <ClCompile Include="..\..\XArrayLibrary\XArray.cpp" />
+    <ClCompile Include="..\..\XArrayLibrary\XA_fft2.cpp" />
     <ClCompile Include="..\..\XArrayLibrary\XA_file.cpp" />
     <ClCompile Include="..\..\XArrayLibrary\XA_ini.cpp" />
-    <ClCompile Include="MultisliceK.cpp" />
+    <ClCompile Include="..\..\XArrayLibrary\XA_spln2.cpp" />
+    <ClCompile Include="MultisliceK.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="MultisliceT.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\fftwlib\fftw3.h" />
@@ -163,6 +171,7 @@
     <ClInclude Include="..\..\TemsimLibrary\floatTIFF.hpp" />
     <ClInclude Include="..\..\TemsimLibrary\pdb.h" />
     <ClInclude Include="..\..\TemsimLibrary\slicelib.hpp" />
+    <ClInclude Include="..\..\XArrayLibrary\fftwd2fc.h" />
     <ClInclude Include="..\..\XArrayLibrary\IXAHead.h" />
     <ClInclude Include="..\..\XArrayLibrary\IXAHWave.h" />
     <ClInclude Include="..\..\XArrayLibrary\OouraFft.h" />

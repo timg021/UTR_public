@@ -502,10 +502,42 @@ double dblChi2 = myXArray2D.Chi2(otherXArray);
 	}
 
 
-	//
+	//! Rescale the XArray to a given range
+	template <class T> void XArray<T>::Rescale(T tInMin, T tInMax, T tOutMin, T tOutMax)
+	{
+		if (tInMin >= tInMax)
+			throw std::invalid_argument("invalid_argument 'tInMin or tInMax' in XArray<T>::Rescale (max should be larger than min)");
+		if (tOutMin >= tOutMax)
+			throw std::invalid_argument("invalid_argument 'tOutMin or tOutMax' in XArray<T>::Rescale (max should be larger than min)");
+
+		double dTemp;
+		double dInMin = static_cast<double>(tInMin);
+		double dInMax = static_cast<double>(tInMax);
+		double dOutMin = static_cast<double>(tOutMin);
+		double dOutMax = static_cast<double>(tOutMax);
+		double dPropConst((dInMax - dInMin) ? (dOutMax - dOutMin) / (dInMax - dInMin) : 0);
+
+		for (index_t i = 0; i < this->size(); i++)
+		{
+			dTemp = (*this)[i] <= tInMin ? dInMin : (*this)[i] >= tInMax ? dInMax : static_cast<double>((*this)[i]);
+			(*this)[i] = tOutMin + static_cast<T>(dPropConst * (dTemp - dInMin));
+		}
+	}
+
+
+	
 	//***** complex-specific  specializations
 	// It appears that these functions have to be 'inline' to be considered by the compiler
 	//
+	template<> void XArray<fcomplex>::Rescale(fcomplex tInMin, fcomplex tInMax, fcomplex tOutMin, fcomplex tOutMax)
+	{
+		throw std::invalid_argument("invalid_argument '*this' in XArray<fcomplex>::Rescale (this cannot be complex)");
+	}
+ 
+	template<> void XArray<dcomplex>::Rescale(dcomplex tInMin, dcomplex tInMax, dcomplex tOutMin, dcomplex tOutMax)
+	{
+		throw std::invalid_argument("invalid_argument '*this' in XArray<fcomplex>::Rescale (this cannot be complex)");
+	}
 
 	template<> double XArray<fcomplex>::GetAt(index_t index) const
 	{ 
@@ -1001,6 +1033,37 @@ MultiplyExpiFi(C, Fi);
 		for (index_t i = 0; i < isize; i++) C[i] *= std::complex<T>(T(cos(Fi[i])), T(std::sin(Fi[i])));
 	}
 
+	//---------------------------------------------------------------------------
+	//Function XArray<T>::MultiplyExpHom
+	//
+	//	Multiplies a complex XArray object C by exp(-A - i * gamma * A) with real XArray object A
+	//
+	/*!
+		\brief		Multiplies a complex XArray object C by exp(-A - i * gamma * A) with real XArray object A
+		\param		C	Complex XArray object modified by this function
+		\param		A	Real XArray object representing imaginary a phase distribution
+		\param		gamma T-valued constant
+		\param
+		\exception	std::invalid_argument is thrown if C and A have differented sizes
+		\exception	std::runtime_error and derived exceptions can be thrown indirectly by the functions called
+					from inside this function
+		\return		\a None
+		\par		Description:
+			This function modifies a complex XArray object C according to C = C * exp(-A - i * gamma * A) where A is a real XArray object and gamma is a constant.
+		\par		Example:
+\verbatim
+XArray1D<fcomplex> C(20, 1.0f);
+XArray1D<float> A(20, 1.0f);
+MultiplyExpHom(C, A, 300.0f);
+\endverbatim
+	*/
+	template <class T> void MultiplyExpHom(XArray< std::complex<T> >& C, const XArray<T>& A, T gamma)
+	{
+		index_t isize = C.size();
+		if (A.size() != isize) throw std::invalid_argument("invalid_argument 'C and A' in MultiplyExpHom (different sizes)");
+
+		for (index_t i = 0; i < isize; i++) C[i] *= std::exp(std::complex<T>(-A[i], -gamma * A[i]));
+	}
 
 	//---------------------------------------------------------------------------
 	//Function XArray<T>::ReplaceModulus
@@ -1281,12 +1344,17 @@ namespace xar
 	template <class T> XArray<float> Re(const XArray<fcomplex>& C);
 	template <class T> XArray<float> Im(const XArray<fcomplex>& C);
 
+	template <class T> void Convert(unsigned char* pBuffer);
+	template <class T> void Convert(unsigned short* pBuffer);
+
 	template void MakeComplex(const XArray<double>& A, const XArray<double>& B, XArray<dcomplex>& C, bool bMakePolar);
 	template void MakeComplex(const XArray<float>& A, const XArray<float>& B, XArray<fcomplex>& C, bool bMakePolar);
 	template void MakeComplex(const XArray<double>& A, double b, XArray<dcomplex>& C, bool bMakePolar);
 	template void MakeComplex(const XArray<float>& A, float b, XArray<fcomplex>& C, bool bMakePolar);
 	template void MultiplyExpiFi(XArray<dcomplex>& C, const XArray<double>& Fi);
 	template void MultiplyExpiFi(XArray<fcomplex>& C, const XArray<float>& Fi);
+	template void MultiplyExpHom(XArray<dcomplex>& C, const XArray<double>& A, double gamma);
+	template void MultiplyExpHom(XArray<fcomplex>& C, const XArray<float>& A, float gamma);
 	template void Abs2(const XArray<dcomplex>& C, XArray<double>& A);
 	template void Abs2(const XArray<fcomplex>& C, XArray<float>& A);
 	template void Abs(const XArray<dcomplex>& C, XArray<double>& A);

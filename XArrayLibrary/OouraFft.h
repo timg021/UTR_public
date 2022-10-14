@@ -104,14 +104,6 @@ private:
 };
 }
 
-//! Returns the xar::_eValueType corresponding to T=float
-template<> xar::_eValueType xar::OouraFft<float>::GetValuetype() { return eXAFloat; }
-//! Returns the xar::_eValueType corresponding to T=double
-template<> xar::_eValueType xar::OouraFft<double>::GetValuetype() { return eXADouble; }
-
-
-
-
 
 //	CComplex 2-D FFT (in-place pointer form)
 //

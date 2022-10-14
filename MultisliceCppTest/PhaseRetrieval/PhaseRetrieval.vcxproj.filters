@@ -83,6 +83,18 @@
     <ClCompile Include="..\..\..\XArray_tests\XArrayLibrary\fftwd2fc.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\XArrayLibrary\XA_DICOM.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\XArrayLibrary\XA_fft2.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\XArrayLibrary\XA_spln2.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\XArrayLibrary\Oourafft.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\XArrayLibrary\IXAHWave.h">
@@ -173,6 +185,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\..\..\XArray_tests\XArrayLibrary\fftwd2fc.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\XArrayLibrary\XA_DICOM.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

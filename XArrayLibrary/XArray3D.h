@@ -17,7 +17,10 @@
 //---------------------------------------------------------------------------
 //	INCLUDE FILES
 //
+#include <omp.h>
+
 #include "XArray.h"
+#include "XAHWave.h"
 
 //---------------------------------------------------------------------------
 //	FORWARD REFERENCES
@@ -253,6 +256,8 @@ namespace xar
 		void Trim(index_t iZLeft, index_t iZRight, index_t iYLeft, index_t iYRight, index_t iXLeft, index_t iXRight);
 		//! Returns rotationally averaged absolute values (1D radial section) of the 3D array
 		vector<double> RotAbsAverage(int izc, int iyc, int ixc) const;
+		//! Reslices the array in an orthogonal direction, while optionally also changing the direction of some axes
+		XArray3D<T> Reslice(int xy_xz_yz, bool bXFlip, bool bYFlip, bool bZFlip) const;
 
 	// Overridables
 	public:
@@ -458,6 +463,128 @@ namespace xar
 
 		(*this).Swap(xarTemp);
 	}
+
+
+	//! Reslices the array in an orthogonal direction, while optionally also changing the direction of some axes
+	template <class T> XArray3D<T> XArray3D<T>::Reslice(int xy_xz_yz, bool bXFlip, bool bYFlip, bool bZFlip) const
+	// xy_xz_yz == 0 --> XY reslicing, xy_xz_yz == 1 --> XZ reslicing, xy_xz_yz == 2 --> YZ reslicing
+	// xy_xz_yz == 3 --> YX reslicing, xy_xz_yz == 4 --> ZX reslicing, xy_xz_yz == 5 --> ZY reslicing
+	{
+		if (xy_xz_yz < 0 || xy_xz_yz > 5)
+			throw std::invalid_argument("invalid argument 'xy_xz_yz' in XArray3D<T>::Reslice");
+
+		if (xy_xz_yz == 0 && !bXFlip && !bYFlip && !bZFlip) return *this; // nothing to do
+
+		XArray3D<T> xarResult;
+
+		int k0(0), k1 = int(m_iDim1), kk(1);
+		int j0(0), j1 = int(m_iDim2), jj(1);
+		int i0(0), i1 = int(m_iDim3), ii(1);
+		if (bZFlip) { k0 = int(m_iDim1) - 1; k1 = -1; kk = -1; }
+		if (bYFlip) { j0 = int(m_iDim2) - 1; j1 = -1; jj = -1; }
+		if (bXFlip) { i0 = int(m_iDim3) - 1; i1 = -1; ii = -1; }
+
+		if (xy_xz_yz == 0)
+		{
+			xarResult.Resize(m_iDim1, m_iDim2, m_iDim3);
+			#pragma omp parallel for
+			for (int n = 0; n < m_iDim1; n++)
+			{
+				int k = k0 + n * kk;
+				for (int j = j0, m = 0; j != j1, m != m_iDim2; j += jj, m += 1)
+					for (int i = i0, l = 0; i != i1, l != m_iDim3; i += ii, l += 1)
+						xarResult[n][m][l] = ((*this))[k][j][i];
+			}
+		}
+		else if (xy_xz_yz == 1)
+		{
+			xarResult.Resize(m_iDim2, m_iDim1, m_iDim3);
+			#pragma omp parallel for
+			for (int n = 0; n < m_iDim1; n++)
+			{
+				int k = k0 + n * kk;
+				for (int j = j0, m = 0; j != j1, m != m_iDim2; j += jj, m += 1)
+					for (int i = i0, l = 0; i != i1, l != m_iDim3; i += ii, l += 1)
+						xarResult[m][n][l] = ((*this))[k][j][i];
+			}
+		}
+		else if (xy_xz_yz == 2)
+		{
+			xarResult.Resize(m_iDim3, m_iDim1, m_iDim2);
+			#pragma omp parallel for
+			for (int n = 0; n < m_iDim1; n++)
+			{
+				int k = k0 + n * kk;
+				for (int j = j0, m = 0; j != j1, m != m_iDim2; j += jj, m += 1)
+					for (int i = i0, l = 0; i != i1, l != m_iDim3; i += ii, l += 1)
+						xarResult[l][n][m] = ((*this))[k][j][i];
+			}
+		}
+		else if (xy_xz_yz == 3)
+		{
+			xarResult.Resize(m_iDim1, m_iDim3, m_iDim2);
+			#pragma omp parallel for
+			for (int n = 0; n < m_iDim1; n++)
+			{
+				int k = k0 + n * kk;
+				for (int j = j0, m = 0; j != j1, m != m_iDim2; j += jj, m += 1)
+					for (int i = i0, l = 0; i != i1, l != m_iDim3; i += ii, l += 1)
+						xarResult[n][l][m] = ((*this))[k][j][i];
+			}
+		}
+		else if (xy_xz_yz == 4)
+		{
+			xarResult.Resize(m_iDim2, m_iDim3, m_iDim1);
+			#pragma omp parallel for
+			for (int n = 0; n < m_iDim1; n++)
+			{
+				int k = k0 + n * kk;
+				for (int j = j0, m = 0; j != j1, m != m_iDim2; j += jj, m += 1)
+					for (int i = i0, l = 0; i != i1, l != m_iDim3; i += ii, l += 1)
+						xarResult[m][l][n] = ((*this))[k][j][i];
+			}
+		}
+		else if (xy_xz_yz == 5)
+		{
+			xarResult.Resize(m_iDim3, m_iDim2, m_iDim1);
+			#pragma omp parallel for
+			for (int n = 0; n < m_iDim1; n++)
+			{
+				int k = k0 + n * kk;
+				for (int j = j0, m = 0; j != j1, m != m_iDim2; j += jj, m += 1)
+					for (int i = i0, l = 0; i != i1, l != m_iDim3; i += ii, l += 1)
+						xarResult[l][m][n] = ((*this))[k][j][i];
+			}
+		}
+
+		Wavehead3D* pnewHead(0);
+		const IXAHWave3D* pHead = GetIXAHWave3D(*this);
+		if (pHead)
+		{
+			double wl = pHead->GetWl();
+			double ylo = pHead->GetYlo();
+			double yhi = pHead->GetYhi();
+			double xlo = pHead->GetXlo();
+			double xhi = pHead->GetXhi();
+			double zlo = pHead->GetXlo();
+			double zhi = pHead->GetXhi();
+			//if (bXFlip) swap(xlo, xhi); // we cannot do this because xhi must be always larger than xlo
+			//if (bYFlip) swap(ylo, yhi); // ...
+			//if (bYFlip) swap(ylo, yhi); // ...
+
+			if (xy_xz_yz == 0) pnewHead = new Wavehead3D(wl, zlo, zhi, ylo, yhi, xlo, xhi);
+			else if (xy_xz_yz == 1) pnewHead = new Wavehead3D(wl, ylo, yhi, zlo, zhi, xlo, xhi);
+			else if (xy_xz_yz == 2) pnewHead = new Wavehead3D(wl, xlo, xhi, zlo, zhi, ylo, yhi);
+			else if (xy_xz_yz == 3) pnewHead = new Wavehead3D(wl, zlo, zhi, xlo, xhi, ylo, yhi);
+			else if (xy_xz_yz == 4) pnewHead = new Wavehead3D(wl, ylo, yhi, xlo, xhi, zlo, zhi);
+			else if (xy_xz_yz == 5) pnewHead = new Wavehead3D(wl, xlo, xhi, ylo, yhi, zlo, zhi);
+
+			xarResult.SetHeadPtr(pnewHead);
+		}
+
+		return xarResult;
+	}
+
 
 	//! Returns rotationally averaged absolute values (1D radial section) of the 3D array
 	template <class T> vector<double> XArray3D<T>::RotAbsAverage(int kc, int jc, int ic) const

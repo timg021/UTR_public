@@ -177,6 +177,91 @@ namespace xar
 		//! Replaces each array member with its arctangent
 		void Atan(void);
 
+		//! Rescale the XArray to a given range
+		void Rescale(T tInMin, T tInMax, T tOutMin, T tOutMax);
+
+		//! Convert the XArray (Type T) to a sequence of another type (Type U)
+		template <class U> void Convert(U* pBuffer, bool bOptimise, double* pdblScale = nullptr, double* pdblInMin = nullptr) const
+		{
+			if (bOptimise && !std::numeric_limits<U>::is_integer)
+				throw std::invalid_argument("invalid_argument 'bOptimise' in template<class U> XArray<T>::Convert (when bOptimise == true, U must be of integer type)");
+			if (!bOptimise && (pdblScale || pdblInMin))
+				throw std::invalid_argument("invalid_argument 'pdblScale or pdblInMin' in template<class U> XArray<T>::Convert (when bOptimise == false, Scale and MinIn are not defined)");
+
+			double d05 = std::numeric_limits<U>::is_integer && !std::numeric_limits<T>::is_integer ? 0.5 : 0.0;
+			T t05 = static_cast<T>(d05);
+
+			if (bOptimise)
+			{
+				// rescale and perform cast with rounding
+				double dTemp;
+				double dInMin = static_cast<double>(this->Norm(eNormMin));
+				double dInMax = static_cast<double>(this->Norm(eNormMax));
+				U uOutMin = std::numeric_limits<U>::min();
+				double dOutMin = static_cast<double>(uOutMin);
+				double dOutMax = static_cast<double>(std::numeric_limits<U>::max());
+				double dPropConst((dInMax - dInMin) ? (dOutMax - dOutMin) / (dInMax - dInMin) : 0);
+
+				if (pdblScale) *pdblScale = dPropConst;
+				if (pdblInMin) *pdblInMin = dInMin;
+
+				for (index_t i = 0; i < this->size(); i++)
+				{
+					dTemp = static_cast<double>((*this)[i]);
+					dTemp = dTemp <= dInMin ? dInMin : (dTemp >= dInMax ? dInMax : dTemp);
+					pBuffer[i] = uOutMin + static_cast<U>(dPropConst * (dTemp - dInMin) + d05);
+				}
+			}  
+			else
+			{
+				// perform cast with rounding
+				for (index_t i = 0; i < this->size(); i++)
+					pBuffer[i] = static_cast<U>((*this)[i] + t05);
+			}
+		}
+
+
+		//! Rescale and convert the XArray (Type T) to a sequence of another underlying base type (Type U)
+		template <class U> void Convert(U* pBuffer, T tInMin, T tInMax, U uOutMin, U uOutMax,
+			double* pdblScale = nullptr, double* pdblInMin = nullptr) const
+		{
+			if (this->GetValuetype() == eXAFComplex || this->GetValuetype() == eXADComplex)
+				throw std::invalid_argument("invalid_argument 'T' in template<class U> XArray<T>::Convert (T cannot be a complex type)");
+			//if (tInMin >= tInMax)
+				//throw std::invalid_argument("invalid_argument 'tInMin or tInMax' in XArray<T>::Convert (max should be larger than min)");
+			//if (uOutMin >= uOutMax)
+				//throw std::invalid_argument("invalid_argument 'uOutMin or uOutMax' in XArray<T>::Convert (max should be larger than min)");
+
+			double d05 = std::numeric_limits<U>::is_integer && !std::numeric_limits<T>::is_integer ? 0.5 : 0.0;
+
+			// rescale and perform cast with rounding
+			double dTemp;
+			double dInMin = static_cast<double>(tInMin);
+			double dInMax = static_cast<double>(tInMax);
+			double dOutMin = static_cast<double>(uOutMin);
+			double dOutMax = static_cast<double>(uOutMax);
+			double dPropConst((dInMax - dInMin) ? (dOutMax - dOutMin) / (dInMax - dInMin) : 0);
+
+			if (pdblScale) *pdblScale = dPropConst;
+			if (pdblInMin) *pdblInMin = dInMin;
+
+			for (index_t i = 0; i < this->size(); i++)
+			{
+				dTemp = static_cast<double>((*this)[i]);
+				dTemp = dTemp <= dInMin ? dInMin : (dTemp >= dInMax ? dInMax : dTemp);
+				pBuffer[i] = uOutMin + static_cast<U>(dPropConst * (dTemp - dInMin) + d05);
+			}
+		}
+
+	private:
+		//declare these functions private to prevent instantiation
+		void Convert(fcomplex* pBuffer, bool bOptimise, double* pdblSlope = nullptr, double* pdblIntercept = nullptr) const {}
+		void Convert(dcomplex* pBuffer, bool bOptimise, double* pdblSlope = nullptr, double* pdblIntercept = nullptr) const {}
+		void Convert(fcomplex* pBuffer, T tInMin, T tInMax, fcomplex uOutMin, fcomplex uOutMax,
+			double* pdblSlope = nullptr, double* pdblIntercept = nullptr) const {}
+		void Convert(dcomplex* pBuffer, T tInMin, T tInMax, dcomplex uOutMin, dcomplex uOutMax,
+			double* pdblSlope = nullptr, double* pdblIntercept = nullptr) const {}
+
 	// Overridables
 	public:
 
@@ -206,6 +291,7 @@ namespace xar
 	template <class T> void MakeComplex(T a, const XArray<T>& B, XArray< std::complex<T> >& C, bool bMakePolar);
 	template <class T> void MakeComplex(const XArray<T>& A, const XArray<T>& B, XArray< std::complex<T> >& C, bool bMakePolar);
 	template <class T> void MultiplyExpiFi(XArray< std::complex<T> >& C, const XArray<T>& Fi);
+	template <class T> void MultiplyExpHom(XArray< std::complex<T> >& C, const XArray<T>& A, T gamma);
 	template <class T> void ReplaceModulus(XArray< std::complex<T> >& C, const XArray<T>& A);
 	template <class T> void Re(const XArray< std::complex<T> >& C, XArray<T>& A);
 	template <class T> void Im(const XArray< std::complex<T> >& C, XArray<T>& A);

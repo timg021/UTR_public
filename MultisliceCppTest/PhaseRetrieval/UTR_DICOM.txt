@@ -1,0 +1,11 @@
+PatientName UTR
+PatientID UTR
+PatientBirthDate 19800101
+PatientSex Female
+StudyID UTR
+AccessionNumber UTR_0.8mGy_Saggital_5sagittal
+StudyInstanceUID StudyID
+SeriesInstanceUID UTR_0.8mGy_Saggital_5sagittal
+NominalScannedPixelSpacing 0.1
+WindowWidth 1150
+WindowCenter 625

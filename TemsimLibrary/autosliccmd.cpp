@@ -219,13 +219,14 @@ int autosliccmd(vector<string> params, vector<xar::Pair> defocus, xar::Pair asti
 		int noutput; // the switch between intensity(0), phase(1), complex amplitude(2) or 3D potential(3) output form of the result
 		int nfftwinit; // the switch between copying(0) or initializing from new (1) the FFTW plan in autoslic
 		int nIceSave; // the save XYZ files with ice switch: not_save(0) or save(1)
+		float ctblength(0); // x and y side length of the slab (containing the sample) in Angstroms
+		float ctblengthz(0); // z thickness of the slab (containing the sample) in Angstroms
+		float iceThick(1); // thickness of the optional layer of amorphous ice in Angstroms
+		double R1(0); // distance from the point source (0 = plane wave)
 		double angleZ(0); // sample rotation angle in radians (around z axis)
 		double angleY(0); // sample rotation angle in radians (around y' axis)
 		double angleZ2(0); // sample rotation angle in radians (around z" axis, which is supposed to be the illumination axis)
 		double dxc, dyc, dzc; // x, y and z shifts of the centre of rotation from the default position at the centre of the CT cube
-		float ctblength(0); // x and y side length of the slab (containing the sample) in Angstroms
-		float ctblengthz(0); // z thickness of the slab (containing the sample) in Angstroms
-		float iceThick(1); // thickness of the optional layer of amorphous ice in Angstroms
 		//@@@@@ end TEG code
 
 		ofstream fp1;
@@ -388,6 +389,9 @@ int autosliccmd(vector<string> params, vector<xar::Pair> defocus, xar::Pair asti
 
 		if (sscanf(params[30].data(), "%s %d", chaa, &nIceSave) != 2)
 			throw std::runtime_error("Error reading line 31 of input parameter array.");
+
+		if (sscanf(params[31].data(), "%s %lg", chaa, &R1) != 2)
+			throw std::runtime_error("Error reading line 32 of input parameter array.");
 
 		//fclose(ff0);
 		//cout << "Input parameter file has been read successfully!\n";
@@ -591,7 +595,10 @@ int autosliccmd(vector<string> params, vector<xar::Pair> defocus, xar::Pair asti
 				<< 1000. * sparam[pYCTILT] << " mrad" << endl;
 #endif
 		}
-		else nslic0 = 0;     /* end if( lstart...) */
+		else
+		{
+			nslic0 = 0;     /* end if( lstart...) */
+		}
 
  /*  calculate relativistic factor and electron wavelength */
 
@@ -630,6 +637,56 @@ int autosliccmd(vector<string> params, vector<xar::Pair> defocus, xar::Pair asti
 		else
 			if (by > cz) ctblength = by; else ctblength = cz;
 		ctblengthz = ctblength; // ctblengthz may be increased later if an ice layer is added
+
+		// define incident plane or spherical wavefront
+		wave0.resize(nx, ny);
+		if (R1 == 0) // plane incident wave case
+			for (int ix = 0; ix < nx; ix++)
+				for (int iy = 0; iy < ny; iy++)
+				{
+					wave0.re(ix, iy) = 1.0f;
+					wave0.im(ix, iy) = 0.0f;
+				}
+		else // spherical incident wave case
+		{
+			double R1in = R1 - 0.5 * ctblength; // R1 is defined relative to the centre of the object, but the incident wave will be defined at the entrance surface
+			double xx, yy, yyR12;
+			double R12 = R1in * R1in;
+			double aR12 = 1.0 / R12;
+			double tPIdlambda = 2.0 * pi / wavelength(v0);
+			double xst = ctblength / nx, yst = ctblength / ny;
+			int nx2 = nx / 2, ny2 = ny / 2;
+			double phamax = tPIdlambda * sqrt(xst * xst * nx2 * nx2 + yst * yst * ny2 * ny2 + R12);
+			double ampmin = 1.0 / sqrt(1.0 + (xst * xst * nx2 * nx2 + yst * yst * ny2 * ny2) * aR12);
+			xar::XArray2D<float> amp0(ny, nx), pha0(ny, nx);
+			//!!! note that Kirkland's code seems to be mostly(!) using the array(ix,iy) order (which is transposed with respect to XArray convention)
+			for (int j = 0; j < ny; j++)
+			{
+				yy = double(j - ny2) * yst;
+				yy *= yy;
+				yyR12 = yy + R12;
+				for (int i = 0; i < nx; i++)
+				{
+					xx = double(i - nx2) * xst;
+					xx *= xx;
+					amp0[j][i] = float(1.0 / sqrt(1.0 + (xx + yy) * aR12));
+					xx += yyR12;
+					pha0[j][i] = float(tPIdlambda * sqrt(xx) - phamax);
+				}
+			}
+			//!!!NOTE: edge effects of the spherical wave create very strong artefacts, but all attempts to smooth out the edges have been unsuccessful so far
+			//index_t nx8 = index_t(0.125 * nx + 0.5); // width of the edge layer for smooth transition
+			//xar::XArray2DMove<float> moveamp0(amp0);
+			//moveamp0.MaskSmooth(nx8, 50.0, float(ampmin)); // smoothly transition the amplitude to ampmin at the edges
+			//xar::XArray2DMove<float> movepha0(pha0);
+			//movepha0.MaskSmooth(nx8, 50.0, 0.0f); // smoothly transition the phase to 0 at the edges (note that phamax has been subtracted globally)
+			for (ix = 0; ix < nx; ix++)
+				for (iy = 0; iy < ny; iy++)
+				{
+					wave0.re(ix, iy) = float(amp0[iy][ix] * cos(pha0[iy][ix]));
+					wave0.im(ix, iy) = float(amp0[iy][ix] * sin(pha0[iy][ix]));
+				}
+		}
 
 		// save the atomic coordinates for the future
 		int natom0(-1);
@@ -877,8 +934,8 @@ int autosliccmd(vector<string> params, vector<xar::Pair> defocus, xar::Pair asti
 
 				if (noutput != 3) // calculate multislice propagation through the molecule
 					aslice.calculate(pix, wave0, depthpix, param, multiMode, natom, &iseed2,
-						Znum, x, y, z, occ, wobble, beams, hbeam, kbeam, nbout, ycross, dfdelt, ctblength, ctblengthz, nfftwinit, nmode);
-				//@@@@@ end TEG code
+									Znum, x, y, z, occ, wobble, beams, hbeam, kbeam, nbout, ycross, dfdelt, ctblength, ctblengthz, nfftwinit, nmode);
+			//@@@@@ end TEG code
 
 				if (lpartl == 1) {         //    with partial coherence
 					nillum = aslice.nillum;
@@ -979,30 +1036,68 @@ int autosliccmd(vector<string> params, vector<xar::Pair> defocus, xar::Pair asti
 						zzz = zmax + (float)defocus[j].b;
 						for (size_t k = 0; k < natom; k++)
 							Zr2[j][k] = (z2[k] - zzz) * (z2[k] - zzz);
-					}
+					} 
 				}
 
 				float k2maxo = aobj / wavlen;
 				k2maxo = k2maxo * k2maxo;
 				double C3 = double(Cs3 * 1.e+7); // mm --> Angstroms
 				double C5 = double(Cs5 * 1.e+7); // mm --> Angstroms
-				double dblYCentre = 0.5 * (ymax - ymin) + dyc, dblXCentre = 0.5 * (xmax - xmin) + dxc; // centre of rotation
+				double dblYCentre = 0.5 * (ymax + ymin) + dyc, dblXCentre = 0.5 * (xmax + xmin) + dxc; // centre of rotation
 				xar::XArray2D<float> ampRe0(ny, nx), ampIm0(ny, nx), ampRe(ny, nx), ampIm(ny, nx);
 				ampRe.SetHeadPtr(ph2new->Clone()); ampIm.SetHeadPtr(ph2new->Clone());
 				
 				// former starting place of the cycle over different defocus distances	
 				if (noutput != 3) // propagate in free space
 				{
-					// (re)define the transmitted complex amplitude
+					// (re)define the transmitted complex amplitude (note the transposition!)
 					for (ix = 0; ix < nx; ix++)
 						for (iy = 0; iy < ny; iy++)
 							camp[iy][ix] = xar::fcomplex(pix.re(ix, iy), pix.im(ix, iy));
 
+					// take magnification into account if necessary
+					float MM = 1.0f; // magnification factor
+					double Rprime = defocus[jjj].b - 0.5 * ctblengthz; // effective propagation distance
+					#if(0)
+					{
+						if (R1 != 0)
+						{
+							MM = (float)((R1 + defocus[jjj].b) / R1);
+							if (MM == 0) throw std::runtime_error("Error in autosliccmd - magnification is equal to zero.");
+							Rprime = defocus[jjj].b / MM - 0.5 * ctblengthz;
+							// now remove the spherical wave component from the transmitted wave
+							xar::fcomplex fctemp;
+							for (int ix = 0; ix < nx; ix++)
+								for (int iy = 0; iy < ny; iy++)
+								{
+									fctemp = xar::fcomplex(wave0.re(ix, iy), wave0.im(ix, iy));
+									camp[iy][ix] /= fctemp;
+									//camp[iy][ix] = fctemp;
+								}
+						}
+						//xar::XArray2D<float> inten;
+						//xar::CArg(camp, inten);
+						//printf("\n  Writing output file %s ...", fileout[jjj].c_str());
+						//xar::XArData::WriteFileGRD(inten, fileout[jjj].data(), xar::eGRDBIN);
+						//exit(-22);
+					}
+					#endif
+					
 					// propagate
-					if (defocus[jjj].b == 0 && (k2maxo != 0 || C3 != 0 || C5 != 0))
-						xafft.Fresnel(double(wavlen), true, double(k2maxo), C3, C5); // fake propagation is needed in order to enforce the spatial Fourier frequency cutoff or aberrations
-					else
-						xafft.FresnelA(defocus[jjj].b - 0.5 * ctblengthz, astigm.a, astigm.b * pi180, true, double(k2maxo), C3, C5); // propagate to the current defocus distance
+					xafft.FresnelA(Rprime, astigm.a, astigm.b * pi180, true, double(k2maxo), C3, C5); // propagate to the current defocus distance
+					
+					#if(0)
+					{
+						if (R1 != 0)
+						{
+							IXAHWave2D* ph2new = CreateWavehead2D();
+							ph2new->SetData(wavlen, ymin * MM, ymax * MM, xmin * MM, xmax * MM);
+							camp.SetHeadPtr(ph2new);
+							camp /= float(MM);
+						}
+					}
+					#endif
+					
 					#if(0) //!!!! temporary
 					{
 						xafft.FresnelA(-0.5 * ctblengthz, astigm.a, astigm.b * pi180, true, double(k2maxo), C3, C5); // propagate to the current defocus distance

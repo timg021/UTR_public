@@ -18,7 +18,7 @@ int main(int argc, char* argv[])
 #ifdef TEG_MULTITHREADED
 	Counter_Obj thread_counter; // increments the thread counter on construction and decrements it on destruction
 #endif // TEG_MULTITHREADED
-	vector<string> autoslictxt(31); // 31 is the current number of input parameters; if it is changed, the corresponding changes need to be applied in autosliccmd.cpp too.
+	vector<string> autoslictxt(32); // 31 is the current number of input parameters; if it is changed, the corresponding changes need to be applied in autosliccmd.cpp too.
 
 	printf("\nStarting MsctKirkland program ...");
 	try
@@ -46,10 +46,28 @@ int main(int argc, char* argv[])
 		autoslictxt[27] = cline; // The numbering of these parameters is 'historic', it can be changed, but then the corresponding changes need to be applied in autosliccmd.cpp too.
 		if (sscanf(cline, "%s %s", ctitle, cparam) != 2) throw std::runtime_error("Error reading output type from the input parameter file.");
 		int nOutputType = atoi(cparam);
+		switch (nOutputType)
+		{
+		case 0:
+			printf("\nOutput type will be image intensity.");
+			break;
+		case 1:
+			printf("\nOutput type will be phase distribution.");
+			break;
+		case 2:
+			printf("\nOutput type will be complex amplitude.");
+			break;
+		case 3:
+			printf("\nOutput type will be 3D potential.");
+			break;
+		default:
+			throw std::runtime_error("Error: unrecognised output type in the input parameter file.");
+		}
 
 		fgets(cline, 1024, ff0); strtok(cline, "\n"); // 3rd parameter: Output_TIFF/GRD/GRC_filename_template
 		if (sscanf(cline, "%s %s", ctitle, cparam) != 2) throw std::runtime_error("Error reading output file template from the input parameter file.");
 		string outfilename(cparam); // output filename stub
+		printf("\nOutput filename template is %s.", cparam);
 		if ((GetFileExtension(outfilename) != string(".TIFF")) && (GetFileExtension(outfilename) != string(".TIF")) && (GetFileExtension(outfilename) != string(".GRD")) && (GetFileExtension(outfilename) != string(".GRC")))
 			throw std::runtime_error("Error: output filename extension must be TIF, GRD or GRC.");
 		if ((nOutputType == 0 || nOutputType == 1 || nOutputType == 3) && !(GetFileExtension(outfilename) == string(".GRD") || GetFileExtension(outfilename) == string(".TIF") || GetFileExtension(outfilename) == string(".TIFF")))
@@ -59,75 +77,125 @@ int main(int argc, char* argv[])
 
 		fgets(cline, 1024, ff0); strtok(cline, "\n"); // 4th paramter: Use_multislice(0),_projection(1),_or_1st_Born(2)_approximation
 		autoslictxt[25] = cline;
-		if (sscanf(cline, "%s %s", ctitle, cparam) != 2) throw std::runtime_error("Error reading calculation mode (parameter 4) from the input parameter file.");
+		if (sscanf(cline, "%s %s", ctitle, cparam) != 2) throw std::runtime_error("Error reading calculation mode from the input parameter file.");
 		int nCalculationMode = atoi(cparam);
-		if ((nCalculationMode != 0) && (nCalculationMode != 1) && (nCalculationMode != 2))
-			throw std::runtime_error("Unknown calculation mode (parameter 4) in the input parameter file.");
-
+		switch (nCalculationMode)
+		{
+		case 0:
+			printf("\nCalculations will use the multislice model.");
+			break;
+		case 1:
+			printf("\nCalculations will use the projection approximation.");
+			break;
+		case 2:
+			printf("\nCalculations will use the first Born approximation.");
+			break;
+		default:
+			throw std::runtime_error("Error: unknown calculation mode in the input parameter file.");
+		}
+	
 		fgets(cline, 1024, ff0); strtok(cline, "\n"); // 5th parameter: Incident__electron_beam_energy_in_keV
 		autoslictxt[10] = cline;
 		if (sscanf(cline, "%s %s", ctitle, cparam) != 2) throw std::runtime_error("Error reading electron beam energy from the input parameter file.");
 		double ev = atof(cparam) * 1000; // accelerating voltage in eV
-		fgets(cline, 1024, ff0); strtok(cline, "\n"); // 6th parameter: Wavefunction_size_in_pixels,_Nx,Ny
-		autoslictxt[11] = cline;
-		fgets(cline, 1024, ff0); strtok(cline, "\n"); // 7th parameter: Slice_thickness_in_Angstroms
-		autoslictxt[13] = cline;
+		printf("\nIncident electron beam energy is %lg.", ev / 1000.0);
 
-		fgets(cline, 1024, ff0); strtok(cline, "\n"); // 8th parameter:Objective_aperture_in_mrad
+		fgets(cline, 1024, ff0); strtok(cline, "\n"); // 6th parameter: Distance_from_point_source_in_Angstroms_(0=plane_wave)
+		autoslictxt[31] = cline;
+		if (sscanf(cline, "%s %s", ctitle, cparam) != 2) throw std::runtime_error("Error reading distance from the source from the input parameter file.");
+		printf("\nDistance from the source to the centre of the object is %lg Angstroms.", atof(cparam));
+
+		fgets(cline, 1024, ff0); strtok(cline, "\n"); // 7th parameter: Wavefunction_size_in_pixels,_Nx,Ny
+		autoslictxt[11] = cline;
+		if (sscanf(cline, "%s %s %s", ctitle, cparam, cparam1) != 3) throw std::runtime_error("Error reading wavefunction size from the input parameter file.");
+		printf("\nWavefunction size is nx = %d, ny = %d pixels.", atoi(cparam), atoi(cparam1));
+
+		fgets(cline, 1024, ff0); strtok(cline, "\n"); // 8th parameter: Slice_thickness_in_Angstroms
+		autoslictxt[13] = cline;
+		if (sscanf(cline, "%s %s", ctitle, cparam) != 2) throw std::runtime_error("Error reading slice thickness from the input parameter file.");
+		printf("\nSlice thickness is %lg Angstroms.", atof(cparam));
+
+		fgets(cline, 1024, ff0); strtok(cline, "\n"); // 9th parameter:Objective_aperture_in_mrad
 		autoslictxt[7] = cline;
-		fgets(cline, 1024, ff0); strtok(cline, "\n"); // 9th parameter: Spherical_aberration_Cs3_and_Cs5_in_mm
+		if (sscanf(cline, "%s %s", ctitle, cparam) != 2) throw std::runtime_error("Error reading objective aperture from the input parameter file.");
+		if (atof(cparam) != 0) printf("\nObjective aperture is %lg mrad.", atof(cparam));
+		else printf("\nObjective aperture is unrestricted.");
+
+		fgets(cline, 1024, ff0); strtok(cline, "\n"); // 10th parameter: Spherical_aberration_Cs3_and_Cs5_in_mm
 		autoslictxt[5] = cline;
-		fgets(cline, 1024, ff0); strtok(cline, "\n"); // 10th paramter: Include_thermal_vibrations(1)_or_not(0)
+		if (sscanf(cline, "%s %s %s", ctitle, cparam, cparam1) != 3) throw std::runtime_error("Error reading spherical aberrations from the input parameter file.");
+		printf("\nSpherical aberrations are C3 = %lg, C5 = %lg Angstroms.", atof(cparam), atof(cparam1));
+
+		fgets(cline, 1024, ff0); strtok(cline, "\n"); // 11th paramter: Include_thermal_vibrations(1)_or_not(0)
 		autoslictxt[17] = cline;
 		if (sscanf(cline, "%s %s", ctitle, cparam) != 2) throw std::runtime_error("Error reading thermal vibration option from the input parameter file.");
 		int iThermalVibr = atoi(cparam);
+		switch (iThermalVibr)
+		{
+		case 0:
+			printf("\nThermal vibrations will not be included in the calculatioins.");
+			break;
+		case 1:
+			printf("\nThermal vibrations will be included in the calculatioins.");
+			break;
+		default:
+			throw std::runtime_error("Error: unknown value of the thermal vibrations switch in the input parameter file.");
+		}
 
-		fgets(cline, 1024, ff0); strtok(cline, "\n"); // 11th parameter: ____Temperature_in_degrees_K
+		fgets(cline, 1024, ff0); strtok(cline, "\n"); // 12th parameter: ____Temperature_in_degrees_K
 		autoslictxt[18] = cline;
 		double dTemperature(-1.0);
 		if (iThermalVibr != 0)
 		{
 			if (sscanf(cline, "%s %s", ctitle, cparam) != 2) throw std::runtime_error("Error reading temperature from the input parameter file.");
 			dTemperature = atof(cparam);
+			printf("\nTemperature is %lg in degrees K.", dTemperature);
 			if (dTemperature < 0) throw std::runtime_error("Temperature in degrees K cannot be negative.");
 		}
 
-		fgets(cline, 1024, ff0); strtok(cline, "\n"); // 12th parameter: ____Number_of_configurations_to_average_over
+		fgets(cline, 1024, ff0); strtok(cline, "\n"); // 13th parameter: ____Number_of_configurations_to_average_over
 		autoslictxt[19] = cline;
 		if (sscanf(cline, "%s %s", ctitle, cparam) != 2) throw std::runtime_error("Error reading the number of configurations parameter from the input parameter file.");
 		int iNumConfig = atoi(cparam);
+		printf("\nNumber of configurations to use for thermal vibration calculations is %d.", iNumConfig);
 		if (iNumConfig < 0) throw std::runtime_error("Number of configurations cannot be negative.");
 		if (iThermalVibr != 0 && iNumConfig > 1 && !(nOutputType == 0 || nOutputType == 3))
 			throw std::runtime_error("Output type can only be 0 (intensity) or 3 (3D potential) when the thermal vibrations option with multiple configurations is enabled in the input parameter file.");
 
-		fgets(cline, 1024, ff0); strtok(cline, "\n"); // 13th parameter: Ice_layer_thickness_in_Angstroms
+		fgets(cline, 1024, ff0); strtok(cline, "\n"); // 14th parameter: Ice_layer_thickness_in_Angstroms
 		autoslictxt[29] = cline;
+		if (sscanf(cline, "%s %s", ctitle, cparam) != 2) throw std::runtime_error("Error reading ice layer thickness from the input parameter file.");
+		double dIceThickness = atof(cparam);
+		printf("\nIce layer thickness is %lg Angstroms.", dIceThickness);
 		if (iThermalVibr != 0 && dTemperature > 273.15)
 		{
-			if (sscanf(cline, "%s %s", ctitle, cparam) != 2) throw std::runtime_error("Error reading ice layer thickness from the input parameter file.");
 			if (atof(cparam) > 0) throw std::runtime_error("Temperature cannot be higher than 273.15K in the presence of an ice layer.");
 		}
 
-		fgets(cline, 1024, ff0); strtok(cline, "\n"); //14th parameter: Save_XYZ_files_with_ice:_no(0), _yes(1), _1st_one_only(2)
+		fgets(cline, 1024, ff0); strtok(cline, "\n"); //15th parameter: Save_XYZ_files_with_ice:_no(0), _yes(1), _1st_one_only(2)
 		if (sscanf(cline, "%s %s", ctitle, cparam) != 2) throw std::runtime_error("Error reading save XYZ file with ice switch parameter from the input parameter file.");
 		int nIceSave = atoi(cparam);
 		switch (nIceSave)
 		{
 		case 0:
+			if (dIceThickness > 0) printf("\nXYZ files with ice will not be saved.");
 			autoslictxt[30] = "31.Save_XYZ_files_with_ice:_no(0),_yes(1): " + string("0");
 			break;
 		case 1:
+			if (dIceThickness > 0) printf("\nXYZ files with ice will be saved.");
 			autoslictxt[30] = "31.Save_XYZ_files_with_ice:_no(0),_yes(1): " + string("1");
 			break;
 		case 2:
+			if (dIceThickness > 0) printf("\nOnly the first XYZ file with ice will be saved.");
 			// if the value of this parameter == 2, then this array element will be written later - see below
 			break;
 		default:
 			throw std::runtime_error("Unknown value of the save XYZ file with ice switch parameter from the input parameter file.");
 		}
 
-		fgets(cline, 1024, ff0); strtok(cline, "\n"); // 15th parameter: Text_file_with_output_rotation_angles_in_degrees_and_defocus_distances_in_Angstroms
+		fgets(cline, 1024, ff0); strtok(cline, "\n"); // 16th parameter: Text_file_with_output_rotation_angles_in_degrees_and_defocus_distances_in_Angstroms
 		if (sscanf(cline, "%s %s", ctitle, cparam) != 2) throw std::runtime_error("Error reading the name of the file with defocus distances and rotational positions from the input parameter file.");
+		printf("\nText file with output rotation angles and defocus distances is %s.", cparam);
 		string DefocFile = string(cparam);
 		vector<Pair> v2angles;
 		vector<vector <Pair> > vvdefocus;
@@ -162,15 +230,16 @@ int main(int argc, char* argv[])
 		vector<string> voutfilenamesTot;
 		FileNames2(vndefocus, outfilename, voutfilenamesTot); // create "2D array" of output filenames
 
-		fgets(cline, 1024, ff0); strtok(cline, "\n"); //16th parameter: Centre of rotation x, y and z shifts in Angstroms
+		fgets(cline, 1024, ff0); strtok(cline, "\n"); //17th parameter: Centre of rotation x, y and z shifts in Angstroms
 		autoslictxt[12] = cline;
 		if (sscanf(cline, "%s %s %s %s", ctitle, cparam, cparam1, cparam2) != 4)
 			throw std::runtime_error("Error reading ccentre of rotation x, y and z shifts from input parameter file.");
 		printf("\nCentre of rotation shifts in Angstroms: dXc = %g, dYc = %g, dZc = %g (Angstroms)", atof(cparam), atof(cparam1), atof(cparam2));
 
-		fgets(cline, 1024, ff0); strtok(cline, "\n"); // 17th parameter: Number_of_worker_threads_to_launch_in_CT_simulation_mode
+		fgets(cline, 1024, ff0); strtok(cline, "\n"); // 18th parameter: Number_of_worker_threads_to_launch_in_CT_simulation_mode
 		if (sscanf(cline, "%s %s", ctitle, cparam) != 2) throw std::runtime_error("Error reading the number of worker threads from the input parameter file.");
 		unsigned int ncores = (unsigned int)atoi(cparam) + 1; // number of threads to use (expected to be equal to the number of cores) 
+		printf("\nMaximum number of threads to be used = %d", ncores);
 
 		fclose(ff0); // close input parameter file
 

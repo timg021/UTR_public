@@ -1,21 +1,21 @@
 //*****Input parameter file for UHR.exe program*****
 1*.Modality_and_units_of_length_UL:_TEM_&_Angstroms(0)_or_X-ray_CT_&_microns(1): 0
-2.Verbose_output_during_execution_Yes(1)_or_No(0): 1
+2.Verbose_output_during_execution_No(0)_or_Yes(1): 1
 3.Input_file_with_rotation_angles_and_defocus_distances: DefocusRand180_1_NEW.txt
 4.Optional_file_with_indexes_and_weights_for_subseries_selection_or_NONE: NONE
-5.Filename_base_of_flat_field_corrected_input_images_in_RAW,_TIFF_or_GRD_format: C:\Users\tgureyev\Downloads\Temp\au.grd
+5.Filename_base_of_flat_field_corrected_input_images_in_RAW,_TIFF_or_GRD_format: C:\Users\timg\Downloads\Temp\au.grd
 6.HeaderLength(bytes)_Endianness(0=little,1=big)_ElementLength(bytes)_(for_RAW_format): 0 0 4
 7.Input_data_normalization_factors_f1_f2_(input->(input/f1)+f2): 1.0 0.0
 8.Width_and_height_of_input_images_in_pixels_(images_from_files_can_be_trimmed_or_padded_with_1.0): 2048 1024
 9.Pixel_size_in_UL: 0.457
-10.Output_defocus_distances_min_and_max_in_UL: -116.0 116.0
+10*.Output_defocus_distances_min_and_max_and_offset_in_UL: -116.0 116.0 0.0
 11.Centre_of_rotation_x,_y_and_z_shifts_in_UL: 0 0 0
 12.Wavelength_in_UL: 0.02507934
 13*.Objective_aperture_in_mrad: 40.0
 14*.Spherical_aberration_Cs3,_Cs5_in_mm: 0.0 0.0
 15.Phase_retrieval_method:_none(0),_TIE-Hom-2D(1),_TIE-Hom-3D(2)_CTF-2D(3)_or_CTF-3D(4): 1
 16.Apply_Ewald_sphere_curvature_correction:_No(0)_or_Yes(1): 0
-17.Absorption_fraction_beta/delta: 0.0
+17*.Absorption_coefficient_beta/delta_(NOTE:_n=1+delta+i*beta): 0.0001
 18.Average_noise-to-signal_ratio(1/SNR)_in_input_images: 0.03
 19.Tikhonov_regularization_parameter: 0.0001
 20*.Enforce_symmetry:_not_apply(0),_distribute_input_orientations(1),_post_apply(2): 0
@@ -24,18 +24,20 @@
 23.Low-pass_filter_width_in_UL,_background_subtraction_value_and_lower_threshold_level: 0.0 0.0 -1000000.0
 24*.Peak_localization_mode:_not_apply(0)_or_apply(1): 0
 25*.Transverse_and_longitudinal_side_lengths_for_peak_localization_in_UL: 0.8 3.2
-26.File_name_base_for_reconstructed_3D_potential(TEM)_or_beta(X-ray_CT)_in_TIFF_or_GRD_format: C:\Users\tgureyev\Downloads\Temp\Out\out.grd
-27.Min-in,_max-in_and_max-out_for_16-bit_TIFF_output_(all_zeros_trigger_32-bit_output): 5.0e-11 7.0e-10 4095
+26.File_name_base_for_reconstructed_3D_potential(TEM)_or_beta(X-ray_CT)_in_TIFF,_DICOM_or_GRD_format: C:\Users\tgureyev\Downloads\Temp\Out\out.grd
+27.Min-in,_max-in_and_max-out_for_16-bit_output_(all_zeros_trigger_float_output): 5.0e-11 7.0e-10 4095
 28.Euler_rotation_angles(Z,Y',Z")_in_degrees_for_3D_output: 0 0 0
-29.Make_thick_output_slices:_no(0),_MIP(1)_or_averaging(2),_slice_thickness_in_UL: 0 1.0
-30.Save_3D_sampling_matrix_in_files_Yes(1)_or_No(0): 0
-31.Import_and_reprocess_existing_3D_potential(TEM)_or_beta(X-ray_CT)_files:_No(0)_or_Yes(1): 0
-32.Folder_name_for_auxiliary_files_output: C:\Users\tgureyev\Downloads\Temp\000temp
-33.Number_of_parallel_threads: 20
+29.Slice_output_3D_volume_in_XY(0),_XZ(1),_YZ(2),_YX(3),_ZX(4)_or_ZY(5)_2D_planes: 0
+30.Flip_direction_of_X,Y,_and/or_Z_axes_in_output_3D_volume_No(0)_Yes(1): 0 0 0
+31.Make_thick_output_slices:_no(0),_MIP(1)_or_averaging(2),_slice_thickness_in_UL: 0 1.0
+32.Save_3D_sampling_matrix_in_files_Yes(1)_or_No(0): 0
+33.Import_and_reprocess_existing_3D_potential(TEM)_or_beta(X-ray_CT)_files:_No(0)_or_Yes(1): 0
+34.Folder_name_for_auxiliary_files_output: C:\Users\timg\Downloads\Temp\000temp
+35.Number_of_parallel_threads: 24
 //*****
-//Parameters marked with * should be omitted from parameter files with ".xri" extension
+//Parameters marked with * should be omitted or changed in parameter files with the ".xri" extension
 //Electron wavelength in Angstroms: E=200 keV <-> 0.02507934, E=300 keV <-> 0.01968749
 //X-ray wavelength in microns = 0.001239841662513396 / E(keV) 
-//Standard normalization for 16-bit TIFF output in BCT: min-in=5.0e-11, max-in=7.0e-10, max-out=4095
-//Euler rotation (parameter 28) in BCT: axial_slices=(0,0,0), saggital_slices=(0,90,0), coronal_slices=(90,90,-90)
+//Standard normalization for 16-bit output in BCT: (min-in max-in max-out) = (5.0e-11 7.0e-10 4095)
+//Euler rotation (parameter 28) in BCT: axial_slices=(0 0 0), saggital_slices=(0 90 0), coronal_slices=(90 90 -90)
 //*****!!!Don't forget to save this file after editing the parameters

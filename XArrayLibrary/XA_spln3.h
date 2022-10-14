@@ -97,6 +97,8 @@ namespace xar
 		void Rotate3(XArray3D<T>& xaResult3D, double angleZ, double angleY, double angleZ2, int nThreads, double zc = -1.1e-11, double yc = -1.1e-11, double xc = -1.1e-11, T Backgr = T(0)) const;
 		//! Calculates multislice propagation of a plane electron wave through the 3D distribution of the scaled electrostatic potential defined by the wrapped object rXAr3D
 		void Multislice_eV(XArray2D<std::complex<T> >& xaCamp2D, double angleZ, double angleY, double sliceTh, double q2max = -1.0) const;
+		//! Calculates multislice propagation of a plane wave through the 3D distribution of n = 1 - gamma * beta + i * beta, with beta defined by the wrapped object rXAr3D
+		void Multislice_Hom(XArray2D<std::complex<T> >& xaCamp2D, Fftwd2fc& xafftf, double gamma, double sliceTh, double q2max = -1.0) const;
 
 	// Overridables
 
@@ -419,7 +421,7 @@ template <class T> void xar::XArray3DSpln<T>::Rotate1(XArray3D<T>& xaResult3D, d
 //---------------------------------------------------------------------------
 //Function XArray3DSpln<T>::Rotate3
 //
-//	//! Rotates 3D array around a given point with respect to three axes (three Euler angles)
+// Rotates 3D array around a given point with respect to three axes (three Euler angles)
 //
 /*!
 	\brief		Rotates 3D array around three axes
@@ -568,22 +570,22 @@ template <class T> void xar::XArray3DSpln<T>::Multislice_eV(XArray2D<std::comple
 	if (sliceTh <= 0 || sliceTh < m_zst) throw std::invalid_argument("invalid slice thickness in XArray3DSpln<T>::Multislice3DSpln (sliceTh is not positive or smaller than z-step in the wrapped 3D array)");
 
 	if (xaCamp2D.GetDim1() != m_ny || xaCamp2D.GetDim2() != m_nx) 
-		throw std::invalid_argument("invalid argument xaCamp2D in XArray3DSpln<T>::Multislice3DSpln (x or y dimension is different from x or y dimension of the 3D wrapped array with electrostatic potential)");
+		throw std::invalid_argument("invalid argument xaCamp2D in XArray3DSpln<T>::Multislice_eV (x or y dimension is different from x or y dimension of the 3D wrapped array with electrostatic potential)");
 	if (int(log2(m_ny)) != log2(m_ny))
-		throw std::invalid_argument("invalid dim1 in XArray3DSpln<T>::Multislice3DSpln (dim1 is not an integer power of 2)");
+		throw std::invalid_argument("invalid dim1 in XArray3DSpln<T>::Multislice_eV (dim1 is not an integer power of 2)");
 	if (int(log2(m_nx)) != log2(m_nx))
-		throw std::invalid_argument("invalid dim2 in XArray3DSpln<T>::Multislice3DSpln (dim2 is not an integer power of 2)");
+		throw std::invalid_argument("invalid dim2 in XArray3DSpln<T>::Multislice_eV (dim2 is not an integer power of 2)");
 
 	IXAHWave2D* ph2 = GetIXAHWave2D(xaCamp2D);
-	if (!ph2) throw std::invalid_argument("invalid argument xaCamp2D in XArray3DSpln<T>::Multislice3DSpln (no Wavehead2D)");
+	if (!ph2) throw std::invalid_argument("invalid argument xaCamp2D in XArray3DSpln<T>::Multislice_eV (no Wavehead2D)");
 	ph2->Validate();
 
 	//if (ph2->GetWl() != m_wl) throw std::invalid_argument("invalid argument xaCamp2D in XArray3DSpln<T>::Multislice3DSpln (wavelength is different from that in the wrapped 3D array)");
 	double wl = ph2->GetWl(); // we will use this wavelength even if it does not coincide with m_wl
-	if (ph2->GetYlo() != m_ylo) throw std::invalid_argument("invalid argument xaCamp2D in XArray3DSpln<T>::Multislice3DSpln (m_ylo is different from that in the wrapped 3D array)");
-	if (ph2->GetYhi() != m_yhi) throw std::invalid_argument("invalid argument xaCamp2D in XArray3DSpln<T>::Multislice3DSpln (m_yhi is different from that in the wrapped 3D array)");
-	if (ph2->GetXlo() != m_xlo) throw std::invalid_argument("invalid argument xaCamp2D in XArray3DSpln<T>::Multislice3DSpln (m_xlo is different from that in the wrapped 3D array)");
-	if (ph2->GetXhi() != m_xhi) throw std::invalid_argument("invalid argument xaCamp2D in XArray3DSpln<T>::Multislice3DSpln (m_xhi is different from that in the wrapped 3D array)");
+	if (ph2->GetYlo() != m_ylo) throw std::invalid_argument("invalid argument xaCamp2D in XArray3DSpln<T>::Multislice_eV (m_ylo is different from that in the wrapped 3D array)");
+	if (ph2->GetYhi() != m_yhi) throw std::invalid_argument("invalid argument xaCamp2D in XArray3DSpln<T>::Multislice_eV (m_yhi is different from that in the wrapped 3D array)");
+	if (ph2->GetXlo() != m_xlo) throw std::invalid_argument("invalid argument xaCamp2D in XArray3DSpln<T>::Multislice_eV (m_xlo is different from that in the wrapped 3D array)");
+	if (ph2->GetXhi() != m_xhi) throw std::invalid_argument("invalid argument xaCamp2D in XArray3DSpln<T>::Multislice_eV (m_xhi is different from that in the wrapped 3D array)");
 
 	// calculate the coordinate illumination angle parameters
 	double sinangleZ(sin(angleZ)), cosangleZ(cos(angleZ)), sinangleY(sin(angleY)), cosangleY(cos(angleY));
@@ -680,9 +682,83 @@ template <class T> void xar::XArray3DSpln<T>::Multislice_eV(XArray2D<std::comple
 		// multiply the complex amplitude by exp(-i*2*Pi/lambda*slice_projected_phase)
 		MultiplyExpiFi(xaCamp2D, phi);
 		// Fresnel propagate slice thickness forward
-		xafft2.Fresnel(sliceTh, q2max);
+		xafft2.Fresnel(sliceTh, true, q2max, 0, 0);
 	}
-	xafft2.Fresnel(m_zst, q2max); // we want to propagate to zhi, rather than zhi - zst, which is what zlo + zst * (m_nz - 1) is equal to
+	xafft2.Fresnel(m_zst, true, q2max, 0, 0); // we want to propagate to zhi, rather than zhi - zst, which is what zlo + zst * (m_nz - 1) is equal to
+}
+
+
+//---------------------------------------------------------------------------
+//Function XArray3DSpln<T>::Multislice_Hom
+//
+// Calculates multislice propagation of a plane wave through the 3D distribution of n = 1 - gamma * beta + i * beta, with beta defined by the wrapped object rXAr3D
+//	!!!only works with T = float for now (because of the specificity of the FFTW library used here)
+//
+/*!
+	\brief		Calculates multislice propagation of a plane electron wave through the 3D distribution of electrostatic potential defined by the wrapped object rXAr3D
+	\param		xaCamp2D Resultant transmitted complex wave amplitude in the exit plane
+	\param		xafftf Reference to an externally created fftw2Df object with correct nx and ny dimensions
+	\param		gamma This is the delta/beta parameter, with the refractive index assumed to be n = 1 - delta + i * beta = 1 - gamma * beta + i * beta
+	\param      sliceTh slice thickness in the units of the wrapped object
+	\param		q2max Defines the optional bandwidth limit (q2max <= 0.0 is interepreted as infinite aperture)
+	\param		rXar3D is supposed to contain the 3D distribution of beta(x,y,z)
+	\exception	std::runtime_error and derived exceptions can be thrown indirectly by the functions
+				called from inside this function
+	\return		\a None
+	\par		Description:
+		This function calculates multislice propagation of a plane wave through the 3D distribution of n = 1 - gamma * beta + i * beta, with beta defined by the wrapped object rXAr3D
+*/
+template <class T> void xar::XArray3DSpln<T>::Multislice_Hom(XArray2D<std::complex<T> >& xaCamp2D, Fftwd2fc& xafftf, double gamma, double sliceTh, double q2max) const
+{
+	if (sliceTh <= 0 || sliceTh < m_zst) throw std::invalid_argument("invalid slice thickness in XArray3DSpln<T>::Multislice_Hom (sliceTh is not positive or smaller than z-step in the wrapped 3D array)");
+
+	if (xaCamp2D.GetDim1() != m_ny || xaCamp2D.GetDim2() != m_nx)
+		throw std::invalid_argument("invalid argument xaCamp2D in XArray3DSpln<T>::Multislice_Hom (x or y dimension is different from x or y dimension of the 3D wrapped array with electrostatic potential)");
+
+	IXAHWave2D* ph2 = GetIXAHWave2D(xaCamp2D);
+	if (!ph2) throw std::invalid_argument("invalid argument xaCamp2D in XArray3DSpln<T>::Multislice_Hom (no Wavehead2D)");
+	ph2->Validate();
+
+	if (ph2->GetWl() != m_wl) throw std::invalid_argument("invalid argument xaCamp2D in XArray3DSpln<T>::Multislice_Hom (wavelength is different from that in the wrapped 3D array)");
+	if (ph2->GetYlo() != m_ylo) throw std::invalid_argument("invalid argument xaCamp2D in XArray3DSpln<T>::Multislice_Hom (m_ylo is different from that in the wrapped 3D array)");
+	if (ph2->GetYhi() != m_yhi) throw std::invalid_argument("invalid argument xaCamp2D in XArray3DSpln<T>::Multislice_Hom (m_yhi is different from that in the wrapped 3D array)");
+	if (ph2->GetXlo() != m_xlo) throw std::invalid_argument("invalid argument xaCamp2D in XArray3DSpln<T>::Multislice_Hom (m_xlo is different from that in the wrapped 3D array)");
+	if (ph2->GetXhi() != m_xhi) throw std::invalid_argument("invalid argument xaCamp2D in XArray3DSpln<T>::Multislice_Hom (m_xhi is different from that in the wrapped 3D array)");
+
+	index_t nnstep = int(sliceTh / m_zst + 0.5);
+	const T tfact = T(m_zst * tPI / m_wl);
+
+	xar::XArray2D<T> betaproj(m_ny, m_nx);
+	xar::XArray2DFFT<T> xafft2(xaCamp2D, false, true);
+
+	for (index_t nn = 0; nn < m_nz; nn += nnstep)
+	{
+		index_t nn1 = nn + nnstep;
+		if (nn1 > m_nz) // last slice can be thinner than the rest
+		{
+			nn1 = m_nz;
+			sliceTh *= double(nn1 - nn) / double(nnstep);
+		}
+
+		// integrate exp(i * k * (n - 1)) within the current slice and multiply the complex amplitude by the result
+		// n - 1 = - delta + i * beta = -gamma * beta + i * beta
+		// i * k * (n - 1) = -i * k * gamma * beta - k * beta = k * beta * (-1 - i * gamma)
+		// first, integrate k * beta through the slice
+		betaproj.Fill(T(0));
+		for (index_t j = 0; j < m_ny; j++)
+			for (index_t i = 0; i < m_nx; i++)
+				for (index_t n = nn; n < nn1; n++)
+					betaproj[j][i] += m_rXArray3D[n][j][i];
+		betaproj *= tfact;
+
+		// now multiply the 2D complex amplitude by exp[ integrated k * beta times (-1 - i * gamma) ]
+		MultiplyExpHom(xaCamp2D, betaproj, T(gamma));
+		//betaproj.SetHeadPtr(ph2->Clone());
+		//MakeComplex(betaproj, T(0), xaCamp2D, false);
+		
+		// Fresnel propagate slice thickness forward
+		xafft2.FresnelB(xafftf, sliceTh, 0, 0, true, q2max, 0, 0);
+	}
 }
 
 

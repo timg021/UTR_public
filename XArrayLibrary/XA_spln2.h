@@ -152,12 +152,6 @@ template<> inline xar::_eValueType xar::XArray2DSpln<double>::GetValuetype() { r
 
 // NOTE!!! Complex-valued arrays would require specialized templates for some functions of this class
 
-template<> const double xar::XArray2DSpln<char>::m_a05 = 0.5;
-template<> const double xar::XArray2DSpln<short>::m_a05 = 0.5;
-template<> const double xar::XArray2DSpln<long>::m_a05 = 0.5;
-template<> const double xar::XArray2DSpln<float>::m_a05 = 0.0;
-template<> const double xar::XArray2DSpln<double>::m_a05 = 0.0;
-
 
 //! Constructor
 template <class T> xar::XArray2DSpln<T>::XArray2DSpln(const XArray2D<T>& rXAr2D) : m_rXArray2D(rXAr2D)
@@ -794,11 +788,11 @@ template <class T> void xar::XArray2DSpln<T>::Tilt(XArray2D<T>& xaResult, double
 // uncaught. Compiler warnings may be generated saying that classes have been already instantiated,
 // but this is obviously not completely true, as plenty of errors remain uncaught when the
 // following lines are commented out.
-template class xar::XArray2DSpln<char>;
-template class xar::XArray2DSpln<short>;
-template class xar::XArray2DSpln<long>;
-template class xar::XArray2DSpln<float>;
-template class xar::XArray2DSpln<double>;
+//template class xar::XArray2DSpln<char>;
+//template class xar::XArray2DSpln<short>;
+//template class xar::XArray2DSpln<long>;
+//template class xar::XArray2DSpln<float>;
+//template class xar::XArray2DSpln<double>;
 
 //---------------------------------------------------------------------------
 //	EXTERNAL DATA DECLARATIONS

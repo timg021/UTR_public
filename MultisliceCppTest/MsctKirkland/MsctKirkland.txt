@@ -1,20 +1,22 @@
 //*****Input parameter file for MsctKirkland.exe program*****
-1.Input_file_with_atomic_numbers_and_coordinates_in_XYZ_format: ASP_NEW_Kirck_DW.xyz
-2.Output_files_shall_contain_intensity(0),_phase(1),_complex_amplitude(2)_or_3D_potential(3): 0
-3.Output_TIFF/GRD/GRC_filename_template: C:\Users\tgureyev\Downloads\Temp\asp.tif
-4.Use_multislice(0),_projection(1),_or_1st_Born(2)_approximation: 0
-5.Incident__electron_beam_energy_in_keV: 200.0
-6.Wavefunction_size_in_pixels,_Nx,Ny: 256 256
-7.Slice_thickness_in_Angstroms: 1.25
-8.Objective_aperture_in_mrad: 45.0
-9.Spherical_aberration_Cs3_and_Cs5_in_mm: 0 0
-10.Include_thermal_vibrations(1)_or_not(0): 1
-11.____Temperature_in_degrees_K: 300.0
-12.____Number_of_configurations_to_average_over: 64
-13.Ice_layer_thickness_in_Angstroms: 100
-14.Save_XYZ_files_with_ice:_no(0),_yes(1),_1st_one_only(2): 0
-15.Text_file_with_output_rotation_angles_in_degrees_and_defocus_distances_in_Angstroms: DefocusRand36_1_NEW.txt
-16.Centre_of_rotation_x,_y_and_z_shifts_in_Angstroms: 0 0 0
-17.Number_of_worker_threads_to_launch: 20
+1.Input_file_with_atomic_numbers_and_coordinates_in_XYZ_format_or_beta_in_GRD_format: ASP_NEW_Kirck_DW.xyz
+2.Delta/beta_(NOTE:_n=1-delta+i*beta): 285
+3.Output_files_shall_contain_intensity(0),_phase(1),_complex_amplitude(2)_or_3D_potential(3): 0
+4.Output_TIFF/GRD/GRC_filename_template: C:\Users\tgureyev\Downloads\Temp\asp.tif
+5.Use_multislice(0),_projection(1),_or_1st_Born(2)_approximation: 0
+6.Incident_electron_or_X-ray_beam_energy_in_keV: 200.0
+7.Distance_from_point_source_to_the_centre_of_the_object_in_ULs_(0=plane_wave): 0
+8.Wavefunction_size_in_pixels,_Nx,Ny: 256 256
+9.Slice_thickness_in_ULs: 1.25
+10.Objective_aperture_in_mrad: 45.0
+11.Spherical_aberration_Cs3_and_Cs5_in_mm: 0 0
+12.Include_thermal_vibrations(1)_or_not(0): 1
+13.____Temperature_in_degrees_K: 300.0
+14.____Number_of_configurations_to_average_over: 64
+15.Ice_layer_thickness_in_ULs: 100
+16.Save_XYZ_files_with_ice:_no(0),_yes(1),_1st_one_only(2): 0
+17.Text_file_with_output_rotation_angles_in_degrees_and_defocus_distances_in_ULs: DefocusRand36_1_NEW.txt
+18.Centre_of_rotation_x,_y_and_z_shifts_in_ULs: 0 0 0
+19.Number_of_worker_threads_to_launch: 20
 //*****
 //*****!!!Don't forget to save this file after editing the parameters

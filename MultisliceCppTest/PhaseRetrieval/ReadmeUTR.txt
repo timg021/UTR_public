@@ -13,12 +13,12 @@ systems can in principle be used for running this code, but multi-core CPU syste
 has not yet been implemented in this program, so the brand and performance characteristics of the GPU installed in a given computer are largely irrelevant.
 
 Note also that UTR.exe requires considerable amount of RAM in order to run effectively. As a rough guide, the RAM should be able
-to hold simultaneously 3 x 3D single-precision arrays (with 4 byte size elements), each of the size equal to the 3D volume that is being reconstructed.
-For example, if the reconstructed 3D volume contains (1,024)^3 pixels, than each of the three arrays will occupy 4 GB and the required RAM size will be 12 GB. 
-The number of input projection images does not affect this requirement.
+to hold simultaneously 3 x 3D single-precision arrays (with 4 byte elements), each of the array having the dimensions of the 3D volume
+that is being reconstructed. For example, if the reconstructed 3D volume contains (1,024)^3 pixels, than each of the three arrays will
+occupy 4 GB and the required RAM size will be 12 GB. The number of input projection images does not affect this requirement.
 
 The Euler angle convention in this program corresponds to that in Heymann et al, Journal of Structural Biology 151 (2005) 196–207.
-They also correspond to the Euler angles in the "sister" forward-simulation MsctKirkland program (see ReadmeMsctKirkland for details).
+They also correspond to the Euler angles in the forward-simulation MsctKirkland program (see ReadmeMsctKirkland for details).
 
 Note that this program assumes the incident intensity to be uniform and equal to 1.0 at each pixel. In other words,
 input images for this program should already be flat-field corrected. Note that flat-field correction affects the noise and 
@@ -30,79 +30,89 @@ images is still sqrt(N), as in the raw images, while the mean pixel value in the
 The noise-to-signal (NSR) ratio here is equal to 1/sqrt(N), which should be taken into account for the input Parameter 18
 which is used for internal noise filtering during the 3D reconstruction (see below). 
 
-The control of execution of the UTR.exe program is managed via an editable text file UTR.txt which contains all modifiable
-input parameters for UTR.exe. In order for the program to run, the input parameter file UTR.txt must be present in 
+The control of execution of the UTR.exe program is managed via an editable text file UTR.txt (or UTR.xri) which contains all modifiable
+input parameters for UTR.exe. In order for the program to run, the input parameter file must be present in 
 the same folder that UTR.exe is started from. Alternatively, the name of a suitable input parameter file can be presented as
 a command-line argument (following the UTR.exe name in the command line) when starting UTR.exe program. 
-In the latter case, the parameter file can be given an arbitrary name and can be located in any place accessible by the running
-instance of UTR.exe. The format of these input parameter files is fixed and must comply exactly with the structure described below.
+In the latter case, the parameter file can be given an arbitrary name with ".TXT" or ".XRI" extension and can be located
+in any place accessible by the current instance of UTR.exe. The format of these input parameter files is fixed and must comply exactly
+with the structure described below.
 
-The format of the UTR.txt file allows any number of "comment" lines to be present at the beginning and/or at the end of the file, each
-such line starting with two forward slash symbols, "//". The comment lines are ignored by UTR.exe. Other (non-comment) lines must
+The UTR.exe program can run in one of the two alternative modes, corresponding to TEM and X-ray imaging, respectively. The choice of
+the mode is controlled by the first parameter in the UTR.txt parameter file. Alternatively, it is possible to use an input parameter
+file with extension ".XRI" which contains only those parameters that are relevant to the X-ray imaging mode (see the details below).
+Naturally, ".XRI" parameter files can only be used in the X-ray imaging mode.
+
+The format of the input parameter files allows any number of "comment" lines to be present at the beginning and/or at the end of the file,
+each such line starting with two forward slash symbols, "//". The comment lines are ignored by UTR.exe. Other (non-comment) lines must
 all have the same structure and the fixed sequential order with respect to each other. Each non-comment line consists of:
 (a) an arbitrary "expression" with no white spaces, which typically represents the name of a parameter. 
 The contents of this "parameter name" expression are ignored by UTR.exe. An example of a parameter name shown below
-is "10.Output_defocus_distances_min_and_max_in_UL:".
+is "10.Output_defocus_distances_min_and_max_and_offset_in_UL:".
 (b) one or more alphanumerical entries separated by a single white space from each other and from the parameter name, 
-each such entry representing one parameter value, for example " -100.0 100.0", which corresponds to two parameter values equal to
--100.0 and 100.0. 
+each such entry representing one parameter value, for example " -116.0 116.0 0.0", which corresponds to three parameter values equal to
+-116.0, 116.0 and 0.0. 
 Note that the number of white spaces separating the parameters must be equal to one (exactly), otherwise a "zero" parameter may be
 wrongly read in. There should be also no further white spaces after the last parameter in the line. Each line should be terminated
 by the usual "end-of-line / new line / caret-return", etc., symbols, as common for a given OS. The number and 
-types of parameters in each parameter line of the file UTR.txt is pre-determined and cannot be changed, only the values of these
+types of parameters in each line of the parameter file is pre-determined and cannot be changed, only the values of these
 parameters can be edited. The parameter names and comment lines are supposed to give explicit hints about the type and number of 
 parameters expected in a given line. 
 
 Here is a typical example of a valid UTR.txt parameter file.
 //*****Input parameter file for UHR.exe program*****
-1.Modality_and_units_of_length_UL:_TEM_&_Angstroms(0)_or_X-ray_CT_&_microns(1): 0
-2.Verbose_output_during_execution_Yes(1)_or_No(0): 0
-3.Input_file_with_rotation_angles_and_defocus_distances: DefocusRand360_1_D200.txt
+1*.Modality_and_units_of_length_UL:_TEM_&_Angstroms(0)_or_X-ray_CT_&_microns(1): 0
+2.Verbose_output_during_execution_Yes(1)_or_No(0): 1
+3.Input_file_with_rotation_angles_and_defocus_distances: DefocusRand180_1_NEW.txt
 4.Optional_file_with_indexes_and_weights_for_subseries_selection_or_NONE: NONE
-5.Filename_base_of_flat_field_corrected_input_images_in_RAW,_TIFF_or_GRD_format: C:\Users\tgureyev\Downloads\Temp\nfept.grd
+5.Filename_base_of_flat_field_corrected_input_images_in_RAW,_TIFF_or_GRD_format: C:\Users\timg\Downloads\Temp\au.grd
 6.HeaderLength(bytes)_Endianness(0=little,1=big)_ElementLength(bytes)_(for_RAW_format): 0 0 4
 7.Input_data_normalization_factors_f1_f2_(input->(input/f1)+f2): 1.0 0.0
-8.Width_and_height_of_input_images_in_pixels_(images_from_files_can_be_trimmed_or_padded_with_1.0): 512 512
-9.Pixel_size_in_UL: 0.1953125
-10.Output_defocus_distances_min_and_max_in_UL: -50.0 50.0
-11.Centre_of_rotation_x,_y_and_z_shifts_in_UL: 0 0 0 
+8.Width_and_height_of_input_images_in_pixels_(images_from_files_can_be_trimmed_or_padded_with_1.0): 2048 1024
+9.Pixel_size_in_UL: 0.457
+10*.Output_defocus_distances_min_and_max_and_offset_in_UL: -116.0 116.0 0.0
+11.Centre_of_rotation_x,_y_and_z_shifts_in_UL: 0 0 0
 12.Wavelength_in_UL: 0.02507934
-13.Objective_aperture_(half_angle)_in_mrad: 40.0
-14.Spherical_aberration_Cs3,_Cs5_in_mm: 0.0 0.0
-15.Phase_retrieval_method:_none(0),_TIE-Hom-2D(1),_TIE-Hom-3D(2)_CTF-2D(3)_or_CTF-3D(4): 3
-16.Apply_Ewald_sphere_curvature_correction:_No(0)_or_Yes(1): 1
-17.Absorption_coefficient_beta/delta_(NOTE:_n=1+delta+i*beta): 0.0001
-18.Average_noise-to-signal_ratio(1/SNR)_in_input_images: 0.666667
-19.Tikhonov_regularization_parameter: 0.1
-20.Enforce_symmetry:_not_apply(0),_distribute_input_orientations(1),_post_apply(2): 0
-21.Input_file_with_rotation_angles_enforcing_symmetry: Defocus8foldSymmetry.txt
+13*.Objective_aperture_in_mrad: 40.0
+14*.Spherical_aberration_Cs3,_Cs5_in_mm: 0.0 0.0
+15.Phase_retrieval_method:_none(0),_TIE-Hom-2D(1),_TIE-Hom-3D(2)_CTF-2D(3)_or_CTF-3D(4): 1
+16.Apply_Ewald_sphere_curvature_correction:_No(0)_or_Yes(1): 0
+17*.Absorption_coefficient_beta/delta_(NOTE:_n=1+delta+i*beta): 0.0001
+18.Average_noise-to-signal_ratio(1/SNR)_in_input_images: 0.03
+19.Tikhonov_regularization_parameter: 0.0001
+20*.Enforce_symmetry:_not_apply(0),_distribute_input_orientations(1),_post_apply(2): 0
+21*.Input_file_with_rotation_angles_enforcing_symmetry: Defocus8foldSymmetry.txt
 22.Inverse_3D_Laplacian_filter:_not_apply(0)_or_apply(1): 0
-23.Low-pass_filter_width_in_UL,_background_subtraction_value_and_lower_threshold_level: 0.0 0.0 -1.0e+8
-24.Peak_localization_mode:_not_apply(0)_or_apply(1): 0
-25.Transverse_and_longitudinal_side_lengths_for_peak_localization_in_UL: 1.0 1.0
-26.File_name_base_for_reconstructed_3D_potential(TEM)_or_beta(X-ray_CT)_in_TIFF_or_GRD_format:  C:\Users\tgureyev\Downloads\Temp\out.grd
-27.Min-in,_max-in_and_max-out_for_16-bit_TIFF_output_(all_zeros_trigger_32-bit_output): 0 0 0
+23.Low-pass_filter_width_in_UL,_background_subtraction_value_and_lower_threshold_level: 0.0 0.0 -1000000.0
+24*.Peak_localization_mode:_not_apply(0)_or_apply(1): 0
+25*.Transverse_and_longitudinal_side_lengths_for_peak_localization_in_UL: 0.8 3.2
+26.File_name_base_for_reconstructed_3D_potential(TEM)_or_beta(X-ray_CT)_in_TIFF,_DICOM_or_GRD_format: C:\Users\tgureyev\Downloads\Temp\Out\out.grd
+27.Min-in,_max-in_and_max-out_for_16-bit_output_(all_zeros_trigger_float_output): 5.0e-11 7.0e-10 4095
 28.Euler_rotation_angles(Z,Y',Z")_in_degrees_for_3D_output: 0 0 0
-29.Make_thick_output_slices:_no(0),_MIP(1)_or_averaging(2),_slice_thickness_in_UL: 0 0.0
-30.Save_3D_sampling_matrix_in_files_Yes(1)_or_No(0): 0
-31.Import_and_reprocess_existing_3D_potential(TEM)_or_beta(X-ray_CT)_files:_No(0)_or_Yes(1): 0
-32.Folder_name_for_auxiliary_files_output:  C:\Users\tgureyev\Downloads\Temp\000temp\
-33.Number_of_parallel_threads: 20
+29.Slice_output_3D_volume_in_XY(0),_XZ(1),_YZ(2),_YX(3),_ZX(4)_or_ZY(5)_2D_planes: 0
+30.Flip_direction_of_X,Y,_and/or_Z_axes_in_output_3D_volume_No(0)_Yes(1): 0 0 0
+31.Make_thick_output_slices:_no(0),_MIP(1)_or_averaging(2),_slice_thickness_in_UL: 0 1.0
+32.Save_3D_sampling_matrix_in_files_Yes(1)_or_No(0): 0
+33.Import_and_reprocess_existing_3D_potential(TEM)_or_beta(X-ray_CT)_files:_No(0)_or_Yes(1): 0
+34.Folder_name_for_auxiliary_files_output: C:\Users\timg\Downloads\Temp\000temp
+35.Number_of_parallel_threads: 24
 //*****
+//Parameters marked with * should be omitted or changed in parameter files with the ".xri" extension
 //Electron wavelength in Angstroms: E=200 keV <-> 0.02507934, E=300 keV <-> 0.01968749
 //X-ray wavelength in microns = 0.001239841662513396 / E(keV) 
-//Standard normalization for 16-bit TIFF output in BCT: min-in=5.0e-11, max-in=7.0e-10, max-out=4095
-//Euler rotation (parameter 28) in BCT: axial_slices=(0,0,0), saggital_slices=(0,90,0), coronal_slices=(90,90,-90)
+//Standard normalization for 16-bit output in BCT: (min-in max-in max-out) = (5.0e-11 7.0e-10 4095)
+//Euler rotation (parameter 28) in BCT: axial_slices=(0 0 0), saggital_slices=(0 90 0), coronal_slices=(90 90 -90)
 //*****!!!Don't forget to save this file after editing the parameters
 
 There is also a second version of the format for the input parameter files which can be used when this input text file has the ".xri" 
-file extension. This second version contains a subset of parameters shown above and is typically used for X-ray phase-contrast CT imaging.
+file extension. This second version contains a subset of parameters shown above and is used for X-ray phase-contrast CT imaging.
 The "missing" parameters are all given their "default values" as explained below. A typical example of an ".xri" parameter file
-looks as following. Parameter 17 of the generic format becomes parameter 13 in the ".xri" format has a slightly different interpretation
+looks as following. Parameter 17 of the ".txt" format (it becomes parameter 13 in the ".xri" format) has a slightly different interpretation
 as explained below.
 
-//*****Input parameter file for UHR.exe program in .XRI format*****
-1.Verbose_output_during_execution_Yes(1)_or_No(0): 1
+Here is a typical example of a valid UTR.xri parameter file.
+//*****Input parameter file for UHR.exe program*****
+1.Verbose_output_during_execution_Yes(1)_or_No(0): 0
 2.Input_file_with_rotation_angles_and_defocus_distances: DefocusReg480_1_NEW.txt
 3.Optional_file_with_indexes_and_weights_for_subseries_selection_or_NONE: NONE
 4.Filename_base_of_flat_field_corrected_input_images_in_RAW,_TIFF_or_GRD_format: C:\Users\tgureyev\Downloads\Temp\2145659R_480_proj\p.grd
@@ -119,33 +129,35 @@ as explained below.
 15.Tikhonov_regularization_parameter: 0.000001
 16.Inverse_3D_Laplacian_filter:_not_apply(0)_or_apply(1): 0
 17.Low-pass_filter_width_in_microns,_background_subtraction_value_and_lower_threshold_level: 0.0 0.0 -1.0e+8
-18.File_name_base_for_reconstructed_3D_distribution_of_beta_in_TIFF_or_GRD_format:  C:\Users\tgureyev\Downloads\Temp\out.tif
-19.Min-in,_max-in_and_max-out_for_16-bit_TIFF_output_(all_zeros_trigger_32-bit_output): 0 0 0
-20.Euler_rotation_angles(Z,Y',Z")_in_degrees_for_3D_output: 0 0 0
-21.Make_thick_output_slices:_no(0),_MIP(1)_or_averaging(2);_slice_thickness_in_microns: 0 1000.0
-22.Save_3D_sampling_matrix_in_files_Yes(1)_or_No(0): 0
-23.Import_existing_3D_distribution_of_beta_from_files_and_reprocess:_No(0)_or_Yes(1): 0
-24.Folder_name_for_auxiliary_files_output:  C:\Users\tgureyev\Downloads\Temp\000temp\
-25.Number_of_parallel_threads: 20
+18.File_name_base_for_reconstructed_3D_distribution_of_beta_in_TIFF,_DICOM_or_GRD_format:  C:\Users\tgureyev\Downloads\Temp\out.grd
+19.Min-in,_max-in_and_max-out_for_16-bit_output_(all_zeros_trigger_float_output): 0 0 0
+20.Euler_rotation_angles(Z,Y',Z")_in_degrees_for_3D_output: 0 75 0
+21.Slice_output_3D_volume_in_XY(0),_XZ(1),_YZ(2),_YX(3),_ZX(4)_or_ZY(5)_2D_planes: 0
+22.Flip_direction_of_X,Y,_and/or_Z_axes_in_output_3D_volume_No(0)_Yes(1): 0 0 0
+23.Make_thick_output_slices:_no(0),_MIP(1)_or_averaging(2);_slice_thickness_in_microns: 0 1000.0
+24.Save_3D_sampling_matrix_in_files_No(0)_or_Yes(1): 0
+25.Import_existing_3D_distribution_of_beta_from_files_and_reprocess:_No(0)_or_Yes(1): 0
+26.Folder_name_for_auxiliary_files_output:  C:\Users\timg\Downloads\Temp\000temp\
+27.Number_of_parallel_threads: 24
 //*****
 //X-ray wavelength in microns = 0.001239841662513396 / E(keV) 
-//Standard normalization for 16-bit TIFF output in BCT: min-in=5.0e-11, max-in=7.0e-10, max-out=4095
-//Euler rotation (parameter 28) in BCT: axial_slices=(0,0,0), saggital_slices=(0,90,0), coronal_slices=(90,90,-90)
+//Standard normalization for 16-bit output in BCT: (min-in max-in max-out) = (5.0e-11 7.0e-10 4095)
+//Euler rotation (parameter 20) in BCT: axial_slices=(0 0 0), saggital_slices=(0 90 0), coronal_slices=(90 90 -90)
 //*****!!!Don't forget to save this file after editing the parameters
 
 Note that the "numbering" of parameters in the parameter names, such as "10" in 
-"10.Output_defocus_distances_min_and_max_in_UL:" is inconsequential and is ignored by UTR.exe. On the other hand, the order
-of the parameter lines in this file is critically important and must be the same as in the above example. In other words, 
+"10.Output_defocus_distances_min_and_max_and_offset_in_UL:" is inconsequential and is ignored by UTR.exe. On the other hand,
+the order of the parameter lines in this file is critically important and must be the same as in the above example. In other words, 
 UTR.exe interprets the input parameters according to the order of the non-comment lines in the parameter file, while ignoring
 any numbering that may or may not appear in the parameter names.
 
 The list of parameters which are present in the generic parameter files, but are omitted or changed in the ".xri" parameter files,
 is as follows (the default values of the missing parameters are shown here): 
 1.Modality_and_units_of_length_UL:_TEM_&_Angstroms(0)_or_X-ray_CT_&_microns(1): 1
-10.Output_defocus_distances_min_and_max_in_UL: -0.5 * Width 0.5 * Width 
+10.Output_defocus_distances_min_and_max_and_offset_in_UL: -0.5 * Width 0.5 * Width 0.0
 13.Objective_aperture_(half_angle)_in_mrad: 0.0
 14.Spherical_aberration_Cs3,_Cs5_in_mm: 0.0 0.0
---> 17.Absorption_coefficient_beta/delta_(NOTE:_n=1+delta+i*beta): 0.0001 
+--> 17.Absorption_fraction_beta/delta_(NOTE:_n=1+delta+i*beta): 0.0001 
 --> This parameter is changed in ".xri" files to 13.Delta/beta_ratio_(NOTE:_n=1-delta+i*beta): 275.0
 20.Enforce_symmetry:_not_apply(0),_distribute_input_orientations(1),_post_apply(2): 0
 21.Input_file_with_rotation_angles_enforcing_symmetry: NONE
@@ -153,7 +165,8 @@ is as follows (the default values of the missing parameters are shown here):
 25.Transverse_and_longitudinal_side_lengths_for_peak_localization_in_UL: 1.0 1.0
 
 When reading the generic description of the input parameters below, it is necessary to take into account the above variations
-that are applied in the case of ".xri" files.
+that are applied in the case of ".xri" files. The description will be given generally for the case of parameter files with
+the ".txt" extension.
 
 Parameter 1 determines the "modality of execution" of UTR.exe and "units of length, UL". When this parameter is equal to 0,
 TEM imaging is assumed and the units of length are presumed to be angstroms. When this parameter is equal to 1,
@@ -164,12 +177,12 @@ electrostatic potential expressed in volts. When this parameter is equal to one,
 imaginary part (beta) of the refractive index, which is dimensionless.
 
 Parameter 2 determines the amount of diagnostic information that UTR.exe 
-outputs (prints out) during the execution. Setting this parameter to 2 increases the amount of information printed out during
+outputs (prints out) during the execution. Setting this parameter to 1 increases the amount of information printed out during
 the execution. In most instances, this parameter won't affect the speed of execution, but the user may still prefer 
 to select "0" here in order to reduce the clutter on the screen during the program execution.
 
-Parameter 3 contains the name of an input file with rotation angles and 
-defocus distances, which can contain experimental data, or it can be the same file that was previously used by 
+Parameter 3 contains the name of an input file with rotation angles and defocus distances. This file 
+can contain experimental data, or it can be the same file that was previously used by 
 MsctKirkland.exe program to simulate a set of input defocused images. This file may have one
 of two distinct formats which is determined by the file name extension. 
 (a) If the file name extension is ".txt", the file may contain an arbitrary number of leading comment lines, each starting with
@@ -183,21 +196,23 @@ microscopy applications and microns as UL in hard X-ray imaging applications.
 An example of a valid "rotation angles and defocus distances" file is given below. 
 In the case of conventional CT data, it is advisable to put the rotation angles in the second column (Y' angle),
 with the first and the third column containing all zeros.
+Note that UTR.exe should not be used in the cases with multiple defocus distances / images per orientation (which are typically
+used for phase retrieval in the reconstruction). Use PhaseRetrieval.exe program instead in such cases.
 (b) If the file extension is ".relionnew", then this file contains an arbitrary number of lines,
 each line containing exactly ten entries, separated by white spaces, with the following contents:
 1st entry contains the sequential number of the line - this parameter is not used
 2nd entry contains the name of the file where the data was sourced from - this parameter is not used
-3rd entry is the image shift along x in Units of Length 
-4th entry is the image shift along y in Units of Length 
-5th entry is the defocus distance dx corresponding to the x coordinate
-6th entry is the defocus distance dy corresponding to the y coordinate
+3rd entry is the image shift along x in UL 
+4th entry is the image shift along y in UL 
+5th entry is the defocus distance dx in UL corresponding to the x coordinate
+6th entry is the defocus distance dy in UL corresponding to the y coordinate
 7th entry contains the astigmatism angle (alpha) in degrees
 8th entry is the rotation angle "rot" around the Z coordinate in degrees
 9th entry is the rotation angle "tilt" around the Y' coordinate in degrees
 10th entry is the rotation angle "psi" around the Z" coordinate in degrees
 A suitable example of the file with 3D orientations and defocus distances is given below.
 Note that the defocus distances given in this file are considered to be measured from 
-the centre of the imaged object. Therefore, in order to reconstruct the 3D electrostatic potential inside
+the centre of the imaged object. Therefore, in order to reconstruct the 3D electrostatic potential or beta inside
 the imaged object of thickness D, the zmin and zmax values in Parameter 10 should normally be set to
 -D/2 and D/2, respectively.
 Note that in the case of .relionnew files, all numerical values, except the astigmatism angle (alpha)
@@ -213,7 +228,7 @@ in each line separated by a white space. The first column should contain the ind
 "weights" of these frames. In the UTR reconstruction, the contribution of each frame will be weighted according
 to these weights, so the frames (defocused images) with high weights will have larger contribution 
 and the frames with low weights will have smaller contribution to the reconstructed 3D potential. All indexes 
-in the first column should be within the range for images defined in Parameter 3. An example of the subseries selection 
+in the first column should be within the range of image indices defined in Parameter 3. An example of the subseries selection 
 file is given at the end of this document. This parameter can be used, for example, for experimenting with the effect of
 different "effective" radiation doses delivered to the sample in the CT scan on the quality of the 3D reconstruction:
 for example, by selecting every second input projection image with the help of the subseries file specified in Parameter 4,
@@ -222,12 +237,12 @@ image frames in accordance with the degree of their correlation with the calcula
 parameters) of the a priori known approximate structure.
 
 Parameter 5 contains a fully specified pathname template for the input files containing either 
-defocused images in GRD format, uncompressed 32-bit floating-point TIFF format or a
-floating-point RAW file format with an optional header. Note that this template is used for generation of the eventual
-input and output filenames which UTR.exe creates by inserting a single number that correspond to the index of 
+defocused images in GRD format, uncompressed 32-bit floating-point TIFF format or a floating-point RAW file format
+with an optional header. Note that this template is used for generation of the actual input and output filenames 
+which UTR.exe creates by inserting a single number that correspond to the index of 
 a rotational orientation. As a result, when a filename template "ag.grd" is given in this parameter, the output filenames
-may look like "ag00.grd, ag01.grd,..., ag35.grd" (36 files in total), if 36 different rotational positions and defocus distances 
-are specified in the file whose name is given in Parameter 3. When a filename 
+may look like "ag00.grd, ag01.grd,..., ag35.grd" (36 files in total), if 36 different lines with rotational positions 
+and defocus distances are specified in the file whose name is given in Parameter 3. When a filename 
 template "ag1.grd" is given in this parameter, the output filenames may look like "ag1.grd, ag2, ...,
 ag108.grd" (108 x 1 = 108 files in total), if 108 different rotational positions, with 1 defocus distances
 at each rotational position, are specified in the file whose name is given in Parameter 3. In particular,
@@ -240,17 +255,18 @@ template interpretation (with zero padding) is also used by default, e.g. when n
 in the template file name just before the file extension (as in ag.grd). 
 See the description of GRD file format and an example DefocusRand36_NEW.txt file below. 
 
-Parameter 6 contains the parameters required for correct interpretation of the data provided in RAW input
+Parameter 6 contains the values required for correct interpretation of the data provided in RAW input
 data files. These parameters include the length of the optional file header (in bytes), the endianness of
-the file (0 = little endian, 1 = big endian) and the size of each data element, i.e. each pixel value (in bytes).
+the file (0 = little endian, 1 = big endian) and the size of each data element, i.e. each pixel intensity (in bytes).
 The last parameter can only be equal to the length of single-precision or double-precision floating-point numbers
 on a given machine. The endianness of the data file must coincide with the endianness of the current computer / OS.
-This will be checked, but no endianness conversion will be performed. The file header is read, but not used in this program.
+This will be checked, but no endianness conversion will be performed. The file header is skipped and not used in this program.
 
 Parameter 7 contains the input data normalization factors f1 and f2. The data read from the input data files
 is rescaled according to: input -> (input / f1) + f2. For the input data to be not rescaled, the two numbers
-specified in this parameter should be f1 = 1 and f2 = 0. Note that this software requires the incident intensity to be uniformly 1.0.
-This normalization should take this requirement into account.
+specified in this parameter should be f1 = 1 and f2 = 0. Note that this software requires the incident intensity to be
+equal to 1.0 in every pixel (i.e. uniform plane wave with unit intensity is assumed). This normalization should take this
+requirement into account.
 
 Parameter 8 contains the width(X) and the height(Y) of the image in pixels. If an input file contains an image with larger
 dimensions, it will be truncated to the values given in this parameter. If an input file contains an image with smaller
@@ -259,30 +275,35 @@ both the image width and the image height in the input files should be either sm
 corresponding numbers given in Parameter 8. Truncating one dimension, while padding the other is currently not supported. 
 If an input image is given in a RAW format, it will be interpreted according to the values given in this parameter when
 reading the file, i.e. in the case of RAW input file format the truncation or padding won't be applied and, if the size
-of an input RAW file is not equal to width * height specified in this parameter, an exception will be thrown. For better performance,
-it is advisable to have these parameters (as well as the number of output defocus distances) to be either powers of 2 (ideally),
-or easily decomposable into powers of 2 and other primes, e.g. 1280 = 1024 + 256.
+of an input RAW file is not equal to width * height specified in this parameter, an exception will be thrown.
+For a better performance, it is advisable to have these parameters (as well as the number of output defocus distances)
+to be either integer powers of 2 or easily decomposable into powers of 2 and other primes, e.g. 1280 = 1024 + 256. Both
+numbers present in Parameter 8 must be even.
 
-Parameter 9 contains the physical linear size (in Units of Length) of the (square) pixels of the images specified
-in Parameter 5. When the input images are given in GRD format, which contain the physical dimensions of the images
-internally, that internal information is ignored and replaced by the values obtained from Parameter 9 in combination with
+Parameter 9 contains the physical linear size (in UL) of the (square) pixels of the images specified
+in Parameter 5. When the input images are given in GRD format, thus containing the physical dimensions of the images
+in the files, that internal information is ignored and replaced by the values obtained from Parameter 9 in combination with
 the values in Parameter 8.
 
-Parameter 10 contains the minimum and the maximum z coordinate in Units of Length for the output (xy) 
+Parameter 10 contains the minimum and the maximum z coordinates and an optional z-offset in UL for the output (xy) 
 planes at which the 3D potential or beta is reconstructed. In order to reconstruct the 3D electrostatic potential or beta
 inside an imaged object of thickness D, the zmin and zmax values should normally be set to -D/2 and D/2, respectively.
 Note also that this program requires the x, y and z grid steps to be the same, and it will always use
-the z grid step equal to the value given in Parameter 9. 
+the z grid step equal to the value given in Parameter 9. The optional offset can be used to bring the local maximuma of the 
+reconstructed distribution to the exact position of the scatterers (such as atoms) insider the object. A typical value of the
+offset parameter can be around 1.5 A in TEM with 200-300 keV, but this value increases when the objective aperture becomes
+restricted. For example, tests appear to indicate that with the objective aperture of 40 mrad, the optimal offset is approximately
+4 A. See the paper [T.E. Gureyev et al., arXiv 2012.07012] for details.
 
-Parameter 11 contains user-definable x, y and z shifts of the centre of rotation (in Units of Length). The default
+Parameter 11 contains user-definable x, y and z shifts of the centre of rotation (in UL). The default
 values of all zeros correspond to the centre of rotation located at the centre of the reconstruction volume.
 
-Parameter 12 contains the wavelength of the illuminating wave in Units of Length. 
+Parameter 12 contains the wavelength of the illuminating wave in UL. 
 
 Parameter 13 contains the objective aperture in milliradians. Zero or negative value here is interpreted as an infinite aperture.
 
-Parameter 14 contains the values of the spherical aberrations Cs3 and Cs5 (in millimetres) of 
-the imaging system. Zero values correspond to the absence of aberrations.
+Parameter 14 contains the values of the spherical aberrations Cs3 and Cs5 (in millimetres) of the imaging system. 
+Zero values correspond to the absence of aberrations.
 
 Parameter 15 can be equal to 0, 1, 2, 3 or 4. It determines the 2D or 3D phase retrieval (CTF correction) method to be used as 
 part of the UTR algorithm internally in the UTR.exe program. Methods 2 and 4 can be used only in the case when 
@@ -295,23 +316,26 @@ Part 1, pp.33-40.] applied to each input image prior to CT reconstruction.
 "2" corresponds to 3D TIE-Hom phase retrieval method applied after the initial CT reconstruction [D. Thompson, Ya.I. Nesterets,
 K. M. Pavlov and T.	Gureyev, Fast three-dimensional phase retrieval in propagation-based x-ray 	tomography, J.Synchrot.Radiat.,
 vol. 26, pp. 1-14 (2019).].
-"3" corresponds to the conventional 2D CTF applied to input images prior to CT reconstruction [see e.g. Cowley, J. M. (1995).
-Diffraction Physics, 3rd Edition. Amsterdam, Netherlands: Elsevier].
+"3" corresponds to the conventional 2D CTF correction applied to input images prior to CT reconstruction 
+[see e.g. Cowley, J. M. (1995). Diffraction Physics, 3rd Edition. Amsterdam, Netherlands: Elsevier].
 "4" corresponds to the 3D CTF correction applied after the initial CT reconstruction [D. Thompson, Ya.I. Nesterets, K.M. Pavlov
 and T.E. Gureyev, Three-dimensional contrast transfer functions in propagation-based tomography, eprint arXiv: 2206.02688
-(https://arxiv.org/abs/2206.02688). Publication date: 23 May 2022.]
+(https://arxiv.org/abs/2206.02688).]
 
 Parameter 16 is the switch for the Ewald sphere curvature correction. If this parameter is equal to 0, the Ewald sphere curvature
-correction is not applied (flat Ewald sphere is effectively assumed as in conventional CT). If this parameter is equal to 1,
+correction is not applied (flat Ewald sphere is effectively assumed to be flat, as in conventional CT). If this parameter is equal to 1,
 the Ewald sphere curvature correction is applied.
 
 Parameter 17 contains the value of the absorption coefficient in the form of a fraction of the real increment of
 the refractive index, i.e. when n = 1 + delta + i beta, then this coefficient is equal to beta / delta. The value must
 be non-negative (with typical values between 0 and 0.1) in TEM imaging cases (i.e. when Parameter 1 is equal to 0) 
 and must be negative (with typical values between (-0.1 and -0.0001) in hard X-ray imaging cases (i.e. when Parameter 1 is equal to 1).
+In parameter files with ".xri" extension, this parameter changes to delta/beta, and the refractive index is assumed to
+have the form n = 1 - delta + i beta. delta/beta must be positive in this case, with typical values being a few hundreds or
+a few thousands, depending on the object's materials and the X-ray wavelength.
 
 Parameter 18 contains the average noise-to-signal ratio (1/SNR) in input images. The value of this parameter is used for
-noise filtering in the Fourier space in the process of UTR reconstruction. Larger values of this parameter usually result in stronger
+noise filtering in the Fourier space during the UTR reconstruction. Larger values of this parameter result in stronger
 effective low-pass filtering, with less noise but lower spatial resolution in the reconstructed images. Smaller values of this parameter
 tend to result in more noisy images with higher apparent spatial resolution. If this parameter is equal to 0, no noise filtering is applied.
 
@@ -327,12 +351,12 @@ applied after the 3D reconstruction or applied to a previously reconstructed 3D 
 files, depending on the value of Parameter 31). Note that the symmetry enforcement in the UTR program has not been sufficiently
 well tested and debugged, and so it may be safer to use the PhaseRetrieval.exe program for this option instead.
 
-Parameter 21 contains a name of an input file (in the same format as a .txt format in Parameter 3 above),
+Parameter 21 contains the name of an input file (in the same format as a .txt format in Parameter 3 above),
 with Euler rotation angles (in degrees) corresponding to 3D rotations enforcing a known symmetry of the 3D potential.
-If parameter 21 is equal to 1, all input illumination angles from the file given in Parameter 3
-will be split into subsets assigned to each of the symmetry orientations from the file given in parameter 22,
+If parameter 20 is equal to 1, all input illumination angles from the file given in Parameter 3
+will be split into subsets assigned to each of the symmetry orientations from the file given in parameter 21,
 and the reconstructed object will be rotated to the corresponding orientation for each of these subsets during
-the reconstruction. If parameter 21 is equal to 2, the reconstructed or imported potential will be rotated to each one
+the reconstruction. If parameter 20 is equal to 2, the reconstructed or imported potential will be rotated to each one
 of these angles and averaged over all such rotations. The first entry in this input symmetry file
 is always expected to contain all zero angles, corresponding to the "initial" rotational position 
 of the reconstructed 3D potential. Defocus distances present in the input file will be ignored.
@@ -341,7 +365,7 @@ Parameter 22 can be equal to 0 or 1. It determines if and how the inverse 3D Lap
 filter is applied to the 3D potential. "0" corresponds to not applying the inverse 3D Laplacian. 
 "1" corresponds to applying it. The regularization parameter for the inverse 3D Laplacian filter is taken from
 Parameter 19. Relatively large values of this parameter (1 or larger) correspond to a "weak" effect of the inverse Laplacian filter
-which is not strongly affecting higher frequencies. Relatively small values of this parameter (say, 0.01 or smaller) 
+which is not strongly affecting high frequencies. Relatively small values of this parameter (say, 0.01 or smaller) 
 usually result in a "full-strength" application of the inverse Laplacian, with a strong low-pass filtering effect.
 
 Parameter 23 contains the low-pass filter width in Units of Length, the background subtraction value in volts (in 
@@ -361,38 +385,41 @@ than the specified lower threshold value after this are replaced by this lower t
 The optimal values of the low-pass filter width, the background subtraction value and the 
 lower threshold value can be determined by the user e.g. on the basis of comparison of the output 
 3D potential or beta with a priori known realistic physical values for the atomic potentials or X-ray absorption.
+Quite often, the three values in Parameter 23 are set to "0 0 -1.e+8", or similar, for the initial application
+of UTR, implying that during this initial reconstruction no low-pass filtering or thresholding will be applied. During
+a subsequent run of UTR, the Parameter 33 (see below) is set to 1, meaninig that the 3D reconstruction obtained during
+the initial run is read in from files, and then Parameter 23 is activated with some values causing optimal high-pass 
+filtering and thresholding of the reconstructed distribution. This way, the user can experiment with these values,
+without going through a complete UTR reconstruction from defocused images every time.
 
 Parameter 24 can be equal to 0 or 1. When this parameter is set to 0, the peak localization in
 the reconstructed 3D potential or beta is not performed. When this parameter is set to 1, 
 the peak localization in the reconstructed 3D potential is performed. This peak localization is typically
 used in the case of TEM imaging of molecules or nanoparticles, where the peaks are supposed to correspond to
-positions of the individual atoms. When this parameter is set to 1 and Parameter 31 is set to 1, the initial
+positions of the individual atoms. When this parameter is set to 1 and Parameter 33 is set to 1, the initial
 reconstruction of the 3D potential is skipped, the distribution of the potential is read from the files defined
 by Parameter 26 and the peak localization is performed in the imported 3D potential. This is preceded by the
 filtering and thresholding of the imported potential according to Parameter 23, with the renormalized potential
-saved in the GRD or TIFF files in the folder specified by Parameter 32 and with the names that are obtained from
+saved in the GRD or TIFF files in the folder specified by Parameter 34 and with the names that are obtained from
 the names defined by Parameter 26, but with inserted letter "R" at the end of the filename, 
 immediately preceding the file extension. The "peak-localized" 3D potential is also saved in the
-GRD or TIFF files in the folder specified by Parameter 32, and with the names that are obtained from 
+GRD or TIFF files in the folder specified by Parameter 34, and with the names that are obtained from 
 the names defined by Parameter 26, but with inserted letter "A" at the end of the filename, 
 immediately preceding the file extension. The positions of the located peaks, as well as their intensities,
-will be also saved in a Kirkland-format XYZ molecular file, provided that the number of peaks is less
+are saved in a Kirkland-format XYZ molecular file, provided that the number of peaks is less
 than a pre-defined maximum (currently this is set to 500,000; this is done in order to avoid extremely
 large XYZ files to be saved on a hard disk, which may take a very long time and occupy a lot of disk space).
-The name of this XYZ file is created from the name template defined by Parameter 26, but with the letter "A" inserted
-at the end of the filename, immediately preceding the file extension, which in turn is changed
-to ".xyz" here. This file is also saved in the folder specified in Parameter 32. A typical usage cycle of 
-UTR.exe in the case of TEM imaging with atom localization may consist of an initial reconstruction of the 3D potential
-from defocused images and saving them into files in the first run of UTR.exe, with Parameter 31 set to 0 and 
-Parameter 23 set to "0 0 -1.e+8". This may be followed by a second run (restart) of UTR.exe program, with a
-suitably modified parameter file, where Parameter 31 is set to 1, and Parameter 25 are set to some suitable values
-for background removal. A two-run reconstruction cycle may be useful in the case of X-ray PCT imaging as well.
-In the initial run, the reconstructed 3D volume can be saved in a "default" form, i.e. in "thin" axial slices 
-saved in files with floating-point pixels (GRD or 32-bit TIFF format), without any 3D rotation (all zeros in Parameter 32). 
-In subsequent runs, one can select a different orientation for the output 2D slices (e.g. saggital, by selecting
-0 90 0 Euler angles in Parameter 28, or coronal, by selecting 90 90 -90 Euler angles in Parameter 28), choosing thick
-output slices defined with the help of Parameter 29 and saving them in 16-bit TIFF files with the scaling
-of the output data defined by Parameter 27.
+The name of this XYZ file is created from the name template defined by Parameter 26, but with the file extension
+".xyz". A typical usage cycle of UTR.exe in the case of TEM imaging with atom localization may consist of an 
+initial reconstruction of the 3D potential from defocused images and saving them into files in the first run of UTR.exe,
+with Parameter 33 set to 0 and Parameter 23 set to "0 0 -1.e+8". This may be followed by a second run (restart) of 
+UTR.exe program, with a suitably modified parameter file, where Parameter 33 is set to 1, and Parameter 23 are set
+to some suitable values for background removal. A two-run reconstruction cycle may be useful in the case of X-ray PCT
+imaging as well, although here the usage is different. During the initial run, the reconstructed 3D volume can be saved
+in a "default" form, i.e. in "thin" axial slices saved in files with floating-point pixels (GRD or 32-bit TIFF format),
+without any 3D rotation (all zeros in Parameter 28). In subsequent runs, one can select a different orientation for the
+output 2D slices using parameter 30, choosing thick output slices defined with the help of Parameter 31 and saving them
+in 16-bit TIFF files with the scaling of the output data defined by Parameter 27.
 
 Parameter 25 defines the transverse (x and y) and longitudinal (z) side lengths of a moving parallelepiped
 area ("box") that is used for peak localization in the reconstructed or imported 3D potential. 
@@ -400,17 +427,26 @@ Note that we exclude the "atom_size"-wide vicinity of the outer boundary from th
 this vicinity may often contain artefacts. If the peak localization is not performed, this parameter is ignored. 
 
 Parameter 26 contains a fully specified pathname for the output files (in GRD format, uncompressed
-32-bit floating-point or 16-bit integer TIFF format) containing 2D sections of the 3D electrostatic potential or beta.
-The selection between the 32-bit and 16-bit TIFF formats is controlled by Parameter 27.
-Note that here the pathname contains a "template" for the eventual output filenames which UTR.exe creates by 
+32-bit floating-point or 16-bit integer TIFF format, or 16-bit unsigned DICOM format) containing 2D sections of
+the 3D electrostatic potential or beta. The selection between the 32-bit and 16-bit formats is also controlled by 
+Parameter 27. Note that here the pathname contains a "template" for the eventual output filenames which UTR.exe creates by 
 inserting numbers that correspond to the z-index of an (xy) plane with a 2D section of the 3D 
 potential. As a result, when a filename template "out.grd" is given in this parameter, the 
 actual filenames with the 3D potential may look like "out000.grd, out001.grd,..., out255.grd", 
 if 256 (xy) planes are specified as a consequence of the values in Parameters 9 and 10.
-If Parameter 31 is equal to 1, these files are actually used as input (read in) by UTR.exe.
+If Parameter 33 is equal to 1, these files are actually used as input (read in) by UTR.exe, except for the case
+where the files were saved in GRD or TIFF format during the initial run, and then the user changed the file name
+extension to ".dcm" in Parameter 26 before the second run. In the latter case, the program will ask the user during
+the execution to tell if the initial files should be read in GRD or TIFF format (note that the initial output files
+cannot possibly be in DICOM format, because UTR can only save 16-bit data in DICOM files, and 16-bit data is not
+suitable for reprocessing). Finally, Parameter 26 specifies DICOM file format for the output, UTR.exe expects to find
+another input parameter file, with a fixed name UTR_DICOM.txt, in the same folder where UTR.exe was started from. 
+The UTR_DICOM.txt file contains editable DICOM tags that are included in the output DICOM files with the reconstructed 
+3D distribution of the electrostatic potential or beta. An example of a typical UTR_DICOM.txt file is given at the end
+of this document.
 
-Parameter 27 defined the minimum and maximum input values, as well as the maximum output value (range) for
-the optional 16-bit TIFF output. If all these values are equal to zero, 32-bit floating-point TIFF output is used.
+Parameter 27 defines the minimum and maximum input values, as well as the maximum output value (range) for
+the optional 16-bit TIFF output. If all these values are equal to zero, 32-bit floating-point output is used.
 If these values are not all equal to zero, all reconstructed values of the electrostatic potential or beta that
 are below the "min-in" value are replaced by the "min-in" value, all reconstructed values that are above the "max-in"
 value are replaced by the "max-in" value, and then each thresholded reconstructed value V(i,j) is mapped onto the output
@@ -420,31 +456,41 @@ since the re-scaled valued are subsequently saved in 16-bit TIFF files, the max-
 Parameter 28 contains the Euler angles of successive rotation (in this order) around the Z, Y' and Z" axes. 
 These rotations are applied to the reconstructed 3D volume prior to the output. Note that in order to keep the result
 of this operation consistent with the conventions used in the pdb.exe, MsctKirkland.exe and the input part of the 
-UTR.exe programs, the actual rotation angles have the values equal to those given in Parameter 28 multiplied by (-1).
-This change in sign can be seen in the printout produced by UTR.exe during execution.
+UTR.exe programs, the actual rotation angles will have the values equal to those given in Parameter 28 multiplied by (-1).
+This change in sign can be seen in the printout produced by UTR.exe during execution. In the case of X-ray imaging mode,
+the most popular operation here is a rotation of the reconstructed volume by some angle around Y' axis (which is usually
+the single rotation axis in X-ray CT scans). This allows the user to bring the reconstructed volume into a desired 
+orientation, before reslicing it for output according to Parameters 30, 31 and 26.
 
-Parameter 29 allows the user to define "thick" output slices that are obtained by optionally averaging or applying the
+Parameter 29 allows the output 3D volume to be re-sliced in any one of the 6 possible orthogonal planes (actually, 3
+possible orthogonal planes, but with possible switch of the order to the two axes in the planes).
+
+Parameter 30 allows the direction of any of the X, Y and/or Z axis to be changed for the output.
+
+Parameter 31 allows the user to define "thick" output slices that are obtained by optionally averaging or applying the
 Maximum Intensity Projection (MIP) to the reconstructed 3D volume along the z coordinate ("view" direction). 
-The actual direction of the z coordinate used here may be affected by the 3D rotation specified in Parameter 28.
+The actual direction of the z coordinate used here may be affected by Parameters 28, 29 and 30.
 
-Parameter 30 specifies if the 3D sampling matrix is to be saved in a series of GRD files. The names of these files
-are created by modifying the output filenames specified in Parameter 32, by changing the file extensions to ".grd"
+Parameter 32 specifies if the 3D sampling matrix is to be saved in a series of GRD files. The names of these files
+are created by modifying the output filenames specified in Parameter 26, by changing the file extensions to ".grd"
 and adding the capital letters "FM" before that file extension.
 
-Parameter 31 can be equal to 0 or 1. When this parameter is set to 0, the UTR reconstruction
-of the 3D potential or beta from defocused images is performed. When this parameter is set to 1, 
-the previously calculated 3D potential is imported from files specified in Parameter 26. See the description
-of Parameter 24 for details.
+Parameter 33 can be equal to 0 or 1. When this parameter is set to 0, the UTR reconstruction of the 3D potential
+or beta from defocused images is performed. When this parameter is set to 1, the previously calculated 3D potential
+or beta distribution is imported from files specified in Parameter 26. See the description
+of Parameter 24 for details about the usage.
 
-Parameter 32 contains a fully specified pathname for the output of various auxiliary files. 
+Parameter 34 contains a fully specified pathname for the output of various auxiliary files. 
 The specified folder must already exist in an accessible location.
 
-Parameter 33 contains the desired number of worker threads to launch during the execution of 
+Parameter 35 contains the desired number of worker threads to launch during the execution of 
 UTR.exe. The recommend number is equal to the hyper-threading capacity of one's 
-computer (often, this number is equal to the number of available CPU cores times 2), minus 1 
-(one thread may be reserved for the "main user thread" that leaves the computer responsive to 
-user interactions during prolonged calculations). For example, if you run UTR.exe 
-on a PC with an Intel Core i5 CPU with 6 cores, the recommended value of this parameter is 11.
+computer (often, this number is equal to the number of available CPU cores times 2). Note that, starting
+from the 12th generation of Intel Core CPUs, not all CPU cores are capable of running two threads of
+calculations in parallel. For example, 12th generation Intel Core i9 12900k CPU has 16 cores, but only 8
+of the cores ("performance cores") can run 2 threads in parallel, while the remaining 8 ("efficiency cores")
+can run only 1 thread at a time. Therefore, in such a case, the recommended number of worker thread in 
+Parameter 19 is 24 (8 * 2 + 8).
  
 ============================================================================================
 ** Example of a text file with ".txt" extension whose name may appear in Parameter 3. 
@@ -531,3 +577,25 @@ changes most rapidly
  may be used in different OSs, but the universal compatibility in this respect is not guaranteed by UHR.exe 
  program. If the endianness issue causes troubles, it is advisable to specify RAW file format for input files,
  as in the latter case the endianness of the input data can be explicitly specified in Parameter 6.
+
+  =======================================================================================
+  ** Example of UTR_DICOM.txt file
+
+//This file contains pre-defined DICOM tags for the UTR program
+//The number and format of the lines below must be preserved (except for comment lines starting with //)
+//Each non-comment line contains two string entries: the name of the tag and the value of the tag, with exactly one white space in between
+//No white spaces, except for the single one between the tag name and the tag value, are allowed in non-comment lines
+//Only tag values can be edited in non-comment lines
+//Tag values cannot contain any white spaces, use underscore or dash symbols if needed
+//
+PatientName 8423990
+PatientID 8423990
+PatientBirthDate 19800101
+PatientSex Female
+StudyID 8423990_32keV_6m_2mGy
+AccessionNumber UTR_2mGy_Coronal_5
+StudyInstanceUID StudyID
+SeriesInstanceUID UTR_2mGy_Coronal_5
+NominalScannedPixelSpacing 0.1
+WindowWidth 1150
+WindowCenter 625

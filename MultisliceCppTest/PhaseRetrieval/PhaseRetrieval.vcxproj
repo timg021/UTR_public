@@ -119,7 +119,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;_SILENCE_ALL_CXX17_DEPRECATION_WARNINGS;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>$(SolutionDir)..\fftwlib;$(SolutionDir)..\XArrayLibrary;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)..\gdcm\inc;$(SolutionDir)..\fftwlib;$(SolutionDir)..\XArrayLibrary;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <OpenMPSupport>true</OpenMPSupport>
       <AdditionalOptions>/EHsc %(AdditionalOptions)</AdditionalOptions>
       <LanguageStandard>stdcpp17</LanguageStandard>
@@ -129,8 +129,8 @@
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>$(SolutionDir)..\fftwlib\Debug_Libs</AdditionalLibraryDirectories>
-      <AdditionalDependencies>fftw3_omp.lib;fftw3f_omp.lib;fftw3.lib;fftw3f.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>$(SolutionDir)..\gdcm\lib_debug;$(SolutionDir)..\fftwlib\Debug_Libs</AdditionalLibraryDirectories>
+      <AdditionalDependencies>fftw3_omp.lib;fftw3f_omp.lib;fftw3.lib;fftw3f.lib;gdcmcharls.lib;gdcmCommon.lib;gdcmDICT.lib;gdcmDSED.lib;gdcmexpat.lib;gdcmgetopt.lib;gdcmIOD.lib;gdcmjpeg8.lib;gdcmjpeg12.lib;gdcmjpeg16.lib;gdcmMEXD.lib;gdcmMSFF.lib;gdcmopenjp2.lib;gdcmzlib.lib;socketxx.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalOptions>/NODEFAULTLIB:libcmtd.lib %(AdditionalOptions)</AdditionalOptions>
     </Link>
   </ItemDefinitionGroup>
@@ -142,7 +142,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;_SILENCE_ALL_CXX17_DEPRECATION_WARNINGS;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>$(SolutionDir)..\fftwlib;$(SolutionDir)..\XArrayLibrary;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)..\gdcm\inc;$(SolutionDir)..\fftwlib;$(SolutionDir)..\XArrayLibrary;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <OpenMPSupport>true</OpenMPSupport>
       <LanguageStandard>stdcpp17</LanguageStandard>
       <OpenMP>GenerateParallelCode</OpenMP>
@@ -160,8 +160,8 @@
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>$(SolutionDir)..\fftwlib\Release_Libs</AdditionalLibraryDirectories>
-      <AdditionalDependencies>fftw3_omp.lib;fftw3f_omp.lib;fftw3f.lib;fftw3.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>$(SolutionDir)..\gdcm\lib;$(SolutionDir)..\fftwlib\Release_Libs</AdditionalLibraryDirectories>
+      <AdditionalDependencies>fftw3_omp.lib;fftw3f_omp.lib;fftw3f.lib;fftw3.lib;gdcmcharls.lib;gdcmCommon.lib;gdcmDICT.lib;gdcmDSED.lib;gdcmexpat.lib;gdcmgetopt.lib;gdcmIOD.lib;gdcmjpeg8.lib;gdcmjpeg12.lib;gdcmjpeg16.lib;gdcmMEXD.lib;gdcmMSFF.lib;gdcmopenjp2.lib;gdcmzlib.lib;socketxx.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalOptions>/NODEFAULTLIB:libcmt.lib %(AdditionalOptions)</AdditionalOptions>
     </Link>
   </ItemDefinitionGroup>
@@ -179,6 +179,7 @@
     <ClCompile Include="..\..\XArrayLibrary\fftwd3drc.cpp" />
     <ClCompile Include="..\..\XArrayLibrary\fftwd3frc.cpp" />
     <ClCompile Include="..\..\XArrayLibrary\IXAHWave.cpp" />
+    <ClCompile Include="..\..\XArrayLibrary\Oourafft.cpp" />
     <ClCompile Include="..\..\XArrayLibrary\Ooura_fftsg2d_dbl.c">
       <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">/Qstd=c99 %(AdditionalOptions)</AdditionalOptions>
       <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Release|x64'">/Qstd=c99 %(AdditionalOptions)</AdditionalOptions>
@@ -197,8 +198,11 @@
     </ClCompile>
     <ClCompile Include="..\..\XArrayLibrary\XAHWave.cpp" />
     <ClCompile Include="..\..\XArrayLibrary\XArray.cpp" />
+    <ClCompile Include="..\..\XArrayLibrary\XA_DICOM.cpp" />
+    <ClCompile Include="..\..\XArrayLibrary\XA_fft2.cpp" />
     <ClCompile Include="..\..\XArrayLibrary\XA_file.cpp" />
     <ClCompile Include="..\..\XArrayLibrary\XA_ini.cpp" />
+    <ClCompile Include="..\..\XArrayLibrary\XA_spln2.cpp" />
     <ClCompile Include="DHT.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
@@ -226,6 +230,7 @@
     <ClInclude Include="..\..\XArrayLibrary\XArray2D.h" />
     <ClInclude Include="..\..\XArrayLibrary\XArray3D.h" />
     <ClInclude Include="..\..\XArrayLibrary\XA_data.h" />
+    <ClInclude Include="..\..\XArrayLibrary\XA_DICOM.h" />
     <ClInclude Include="..\..\XArrayLibrary\XA_fft2.h" />
     <ClInclude Include="..\..\XArrayLibrary\XA_fftr2.h" />
     <ClInclude Include="..\..\XArrayLibrary\XA_file.h" />

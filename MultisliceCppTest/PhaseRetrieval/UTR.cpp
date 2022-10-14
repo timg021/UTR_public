@@ -3,6 +3,7 @@
 #include <chrono>
 #include <omp.h>
 #include <filesystem>
+#include <map>
 
 #include "XArray2D.h"
 #include "XA_data.h"
@@ -13,6 +14,7 @@
 #include "XA_iwfr.h"
 #include "XA_tie.h"
 #include "XA_tiff.h"
+#include "XA_DICOM.h"
 #include "XA_move2.h"
 #include "fftwd3frc.h"
 
@@ -20,6 +22,16 @@
 #include "UTR.h" // various include headers, constants and templates
 
 using namespace xar;
+
+
+string ReadString(FILE* ff0)
+{
+	char cline[1024], ctitle[1024], cparam[1024];
+	fgets(cline, 1024, ff0); strtok(cline, "\n");
+	if (sscanf(cline, "%s %s", ctitle, cparam) != 2) throw std::runtime_error("Error reading input text file.");
+	return string(cparam);
+}
+
 
 int main(int argc, char* argv[])
 {
@@ -44,8 +56,12 @@ int main(int argc, char* argv[])
 		if (argc > 1) sInputParamFile = argv[1];
 
 		bool bXrayPar(false);
-		string sInputParamFileExt = sInputParamFile.substr(sInputParamFile.find_first_of("."), 4);
+		index_t iDotPosition = sInputParamFile.find_last_of(".");
+		if (iDotPosition == string::npos) throw std::runtime_error("Error: filename extension not found in the command-line argument input parameter file");
+		string sInputParamFileExt = sInputParamFile.substr(iDotPosition, 4);
 		if (sInputParamFileExt == string(".xri") || sInputParamFileExt == string(".XRI")) bXrayPar = true;
+		else if (sInputParamFileExt == string(".txt") || sInputParamFileExt == string(".TXT")) bXrayPar = false;
+		else throw std::runtime_error("Error: unknown filename extension in the command-line argument input parameter file");
 
 		FILE* ff0 = fopen(sInputParamFile.c_str(), "rt");
 		if (!ff0) throw std::runtime_error(string("Error: cannot open parameter file " + sInputParamFile + ".").c_str());
@@ -268,11 +284,9 @@ int main(int argc, char* argv[])
 		index_t nx = atoi(cparam);
 		index_t ny = atoi(cparam1);
 		printf("\nDimensions of input images (possibly, after trimming or padding): width = %zd, height = %zd (pixels)", nx, ny);
-		int nxd2 = int(nx / 2), nyd2 = int(ny / 2);
-		if (nx != 2 * nxd2 || ny != 2 * nyd2)
-			throw std::runtime_error("Error: width and height parameters in input parameter file must be even.");
 		int nx2 = int(nx) - 2, ny2 = int(ny) - 2;
 		index_t nxny = (nx * ny);
+		int nxd2 = int(nx / 2), nyd2 = int(ny / 2);
 		
 		fgets(cline, 1024, ff0); strtok(cline, "\n"); // 9. Pixel size in UL
 		if (sscanf(cline, "%s %s", ctitle, cparam) != 2)
@@ -281,39 +295,39 @@ int main(int argc, char* argv[])
 		if (xst <= 0)
 			throw std::runtime_error("Error: pixel size must be positive in input parameter file.");
 		double yst = xst; // this is a provision for possible future extension to non-square pixels
-		double xlo(0.0);
-		double xhi = xst * nx;
-		double ylo(0.0);
-		double yhi = yst * ny;
+		double xlo(-0.5 * xst * nx);
+		double xhi = xlo + xst * nx;
+		double ylo(-0.5 * yst * ny);
+		double yhi = ylo + yst * ny;
 		printf("\nPixel size = %g (UL)", xst);
 		printf("\nPhysical boundaries of input images: Xmin = %g, Xmax = %g, Ymin = %g, Ymax = %g (UL)", xlo, xhi, ylo, yhi);
 		// NOTE that the input 2D images will be trimmed or padded to the (ny, nx) size, if they don't have this size already
 		double fxst = 1.0 / (xhi - xlo), fyst = 1.0 / (yhi - ylo);
 		double fxlo = -fxst * nxd2, fylo = -fyst * nyd2;
 
-		double zlo(-(xhi - xlo) / 2.0); // minimum output defocus in UL (relative to the centre of the reconstruction volume)
-		double zhi(((xhi - xlo) / 2.0)); // maximum output defocus in UL (relative to the centre of the reconstruction volume)
+		double zlo(xlo); // minimum output defocus in UL (relative to the centre of the reconstruction volume)
+		double zhi(xhi); // maximum output defocus in UL (relative to the centre of the reconstruction volume)
 		double zst(xst); // this is a provision for possible future extensions to non-qubic voxels
+		double dzextra(0); // defocus offset parameter
 		if (!bXrayPar)
 		{
 			fgets(cline, 1024, ff0); strtok(cline, "\n"); // 10. Output defocus distances min and max in UL
-			if (sscanf(cline, "%s %s %s", ctitle, cparam, cparam1) != 3) throw std::runtime_error("Error reading output defocus distances from input parameter file.");
+			if (sscanf(cline, "%s %s %s %s", ctitle, cparam, cparam1, cparam2) != 4) throw std::runtime_error("Error reading output defocus distances from input parameter file.");
 			zlo = atof(cparam); // minimum output defocus in UL
 			zhi = atof(cparam1); // maximum output defocus in UL
+			dzextra = atof(cparam2);
 			if (zlo > zhi) std::swap(zlo, zhi);
 		}
 		index_t nz = index_t((zhi - zlo) / zst + 0.5); // number of defocus planes to propagate to
 		printf("\nDimensions of the output volume: width = %zd, height = %zd, thickness = %zd (pixels)", nx, ny, nz);
 		printf("\nPhysical boundaries of the output volume: Xmin = %g, Xmax = %g, Ymin = %g, Ymax = %g, Zmin = %g, Zmax = %g (UL)", xlo, xhi, ylo, yhi, zlo, zhi);
+		printf("\nDefocus offset = %g (UL)", dzextra);
 		if (nz <= 0)
 			throw std::runtime_error("Error: number of z steps is not positive.");
 		int nzd2 = int(nz / 2), nz2 = int(nz) - 2;
-		if (nz != 2 * nzd2)
-			throw std::runtime_error("Error: number of z points must be even.");
-		vector<double> voutdefocus(nz); // vector of output defocus distances
-		for (index_t n = 0; n < nz; n++) voutdefocus[n] = zlo + zst * n;
 		double fzst = 1.0 / (zhi - zlo);
 		double fzlo = -fzst * nzd2;
+		zoutAver -= dzextra;
 
 		fgets(cline, 1024, ff0); strtok(cline, "\n"); //11. Centre of rotation x, y and z shifts in UL
 		if (sscanf(cline, "%s %s %s %s", ctitle, cparam, cparam1, cparam2) != 4)
@@ -427,7 +441,7 @@ int main(int argc, char* argv[])
 		bool bESCC = (bool)atoi(cparam);
 
 		fgets(cline, 1024, ff0); strtok(cline, "\n"); // 17. Absorption fraction beta / delta (or -delta / beta in the case of .xri parameter file)
-		if (sscanf(cline, "%s %s", ctitle, cparam) != 2) throw std::runtime_error("Error reading absorptioin coefficient from input parameter file.");
+		if (sscanf(cline, "%s %s", ctitle, cparam) != 2) throw std::runtime_error("Error reading absorption coefficient from input parameter file.");
 		double asigma = atof(cparam);
 		if (bXrayPar)
 		{
@@ -555,35 +569,87 @@ int main(int argc, char* argv[])
 				throw std::runtime_error("Error: transverse and longitudinal side lengths for peak localization must be 2 x z_step or larger.");
 		}
 
-		fgets(cline, 1024, ff0); strtok(cline, "\n"); // 26. Output file name base in GRD or TIFF format
+		fgets(cline, 1024, ff0); strtok(cline, "\n"); // 26. Output file name base in GRD, TIFF or DICOM format
 		if (sscanf(cline, "%s %s", ctitle, cparam) != 2) throw std::runtime_error("Error reading output file name base from input parameter file.");
 		string filenamebaseOut = cparam;
 		printf("\nFile name base for 3D potential or beta = %s", filenamebaseOut.c_str());
 		strTemp = GetPathFromFilename(filenamebaseOut, false);
 		if (!std::filesystem::exists(strTemp))
 			throw std::runtime_error("Error: the specified file folder for 3D potential or beta does not seem to exist.");
-		bool bTIFFoutput;
+		bool bTIFFoutput(false), bDICOMoutput(false);
+		std::map<string, string> mTags; // DICOM tags
 		if (GetFileExtension(filenamebaseOut) == string(".TIFF") || GetFileExtension(filenamebaseOut) == string(".TIF")) bTIFFoutput = true;
-		else if (GetFileExtension(filenamebaseOut) == string(".GRD")) bTIFFoutput = false;
-		else throw std::runtime_error("Error: output filename extension must be TIF ot GRD.");
-
-		fgets(cline, 1024, ff0); strtok(cline, "\n"); // 27. Minimum-in, maximum-in and maximum-out for 16-bit TIFF output (all zeros trigger 32-bit_output)
-		if (sscanf(cline, "%s %s %s %s", ctitle, cparam, cparam1, cparam2) != 4) throw std::runtime_error("Error reading minimum-in, maximum-in and maximum-out for 16-bit TIFF output from input parameter file.");
-		float tiff16_minin = (float)atof(cparam);
-		float tiff16_maxin = (float)atof(cparam1);
-		long itiff16_maxout = atoi(cparam2);
-		bool bTIFF16out = (tiff16_minin == 0 && tiff16_maxin == 0 && itiff16_maxout == 0) ? false : true;
-		if (bTIFFoutput)
+		else if (GetFileExtension(filenamebaseOut) == string(".DCM"))
 		{
-			if (bTIFF16out)
+			bDICOMoutput = true;
+			FILE* ff0 = fopen("UTR_DICOM.txt", "rt"); // default text file containing pre-defined DICOM tags
+			if (!ff0)
 			{
-				printf("\nMin-in = %g, max-in = %g and max_out = %ld (for 16-bit TIFF file output).", tiff16_minin, tiff16_maxin, itiff16_maxout);
-				if (tiff16_minin >= tiff16_maxin || itiff16_maxout <= 0 || itiff16_maxout > 65535)
-					throw std::runtime_error("Unsuitable values for minimum-in, maximum-in or maximum-out for 16-bit TIFF output from input parameter file.");
+				printf("\nWARNING: unable to open UTR_DICOM.txt file; using default values for DICOM tags!");
+				mTags.insert({ "PatientName", string("UTR") });
+				mTags.insert({ "PatientID", string("UTR") });
+				mTags.insert({ "PatientBirthDate", string("19800101") });
+				mTags.insert({ "PatientSex", string("Female") });
+				mTags.insert({ "StudyID", string("UTR") });
+				mTags.insert({ "AccessionNumber", string("UTR_coronal") });
+				mTags.insert({ "StudyInstanceUID", mTags["StudyID"] });
+				mTags.insert({ "SeriesInstanceUID", mTags["AccessionNumber"] });
+				mTags.insert({ "NominalScannedPixelSpacing", "0.1" });
+				mTags.insert({ "WindowWidth", "4095" });
+				mTags.insert({ "WindowCenter", "2047" });
+			}
+			else
+			{
+				printf("\nReading UTR_DICOM.txt file ...");
+				// read and skip an arbitrary number of initial comment lines (i.e. the lines that start with // symbols)
+				printf("\nReading input parameter file %s ...", sInputParamFile.c_str());
+				while (true)
+				{
+					fgets(cline, 1024, ff0);
+					if (!(cline[0] == '/' && cline[1] == '/')) break;
+				}
+				strtok(cline, "\n");
+				if (sscanf(cline, "%s %s", ctitle, cparam) != 2) 
+					throw std::runtime_error("Error reading input text file.");
+				mTags.insert({ "PatientName", string(cparam)});
+				mTags.insert({ "PatientID", ReadString(ff0) });
+				mTags.insert({ "PatientBirthDate", ReadString(ff0) });
+				mTags.insert({ "PatientSex", ReadString(ff0) });
+				mTags.insert({ "StudyID", ReadString(ff0) });
+				mTags.insert({ "AccessionNumber", ReadString(ff0) });
+				mTags.insert({ "StudyInstanceUID", ReadString(ff0) });
+				mTags.insert({ "SeriesInstanceUID", ReadString(ff0) });
+				mTags.insert({ "NominalScannedPixelSpacing", ReadString(ff0) });
+				mTags.insert({ "WindowWidth", ReadString(ff0) });
+				mTags.insert({ "WindowCenter", ReadString(ff0) });
+				for (auto it = mTags.begin(); it != mTags.end(); ++it)
+					printf("\n %s %s.", (it->first).c_str(), (it->second).c_str());
+			}
+			fclose(ff0);
+		}
+		else if (GetFileExtension(filenamebaseOut) != string(".GRD"))
+			throw std::runtime_error("Error: output filename extension must be TIF/TIFF, DCM or GRD.");
+
+		fgets(cline, 1024, ff0); strtok(cline, "\n"); // 27. Minimum-in, maximum-in and maximum-out for 16-bit output (all zeros trigger 32-bit_output)
+		if (sscanf(cline, "%s %s %s %s", ctitle, cparam, cparam1, cparam2) != 4) throw std::runtime_error("Error reading minimum-in, maximum-in and maximum-out for 16-bit output from input parameter file.");
+		float fbit16_minin = (float)atof(cparam);
+		float fbit16_maxin = (float)atof(cparam1);
+		long lbit16_maxout = atoi(cparam2);
+		bool b16bitout = (fbit16_minin == 0 && fbit16_maxin == 0 && lbit16_maxout == 0) ? false : true;
+		if (bTIFFoutput || bDICOMoutput)
+		{
+			if (b16bitout)
+			{
+				printf("\nMin-in = %g, max-in = %g and max_out = %ld (for 16-bit file output).", fbit16_minin, fbit16_maxin, lbit16_maxout);
+				if (fbit16_minin >= fbit16_maxin || lbit16_maxout <= 0 || lbit16_maxout > 65535)
+					throw std::runtime_error("Unsuitable values for minimum-in, maximum-in or maximum-out for 16-bit output from input parameter file.");
 			}
 			else 
-				printf("\n32-bit (floating point) TIFF output file format will be used.");
+				if (bTIFFoutput) printf("\n32-bit (floating point) TIFF output file format will be used.");
+				else throw std::runtime_error("only 16-bit data can be saved in DICOM files.");
 		}
+		else // GRD output
+			if (b16bitout) throw std::runtime_error("16-bit output cannot be saved in GRD files.");
 
 		fgets(cline, 1024, ff0); strtok(cline, "\n"); // 28. Euler rotation angles (Z, Y',Z") in degrees for 3D output
 		if (sscanf(cline, "%s %s %s %s", ctitle, cparam, cparam1, cparam2) != 4) throw std::runtime_error("Error reading Euler rotation angles for 3D output from input parameter file.");
@@ -596,13 +662,33 @@ int main(int argc, char* argv[])
 		else
 			printf("\nReconstructed 3D potential or beta will NOT be rotated for output.");
 
-		fgets(cline, 1024, ff0); strtok(cline, "\n"); // 29. Make thick output slices: 0=no, 1=MIP, 2=averaging; slice thickness in UL
+		fgets(cline, 1024, ff0); strtok(cline, "\n"); // 29.Slice output 3D volume in XY(0), XZ(1), YZ(2), YX(3), ZX(4) or ZY(5) 2D-planes
+		if (sscanf(cline, "%s %s", ctitle, cparam) != 2) throw std::runtime_error("Error reading reslicing parameter from input parameter file.");
+		int iResliceMode = atoi(cparam);
+		if (iResliceMode == 0) printf("\nOutput 3D volume will be sliced in XY planes");
+		else if (iResliceMode == 1) printf("\nOutput 3D volume will be sliced in XZ planes");
+		else if (iResliceMode == 2) printf("\nOutput 3D volume will be sliced in YZ planes");
+		else if (iResliceMode == 3) printf("\nOutput 3D volume will be sliced in YX planes");
+		else if (iResliceMode == 4) printf("\nOutput 3D volume will be sliced in ZX planes");
+		else if (iResliceMode == 5) printf("\nOutput 3D volume will be sliced in ZY planes");
+		else throw std::runtime_error("Error: unknown value for the output 3D volume reslicing parameter.");
+
+		fgets(cline, 1024, ff0); strtok(cline, "\n"); // 30.Flip direction of X, Y, and / or Z axes in output 3D volume
+		if (sscanf(cline, "%s %s %s %s", ctitle, cparam, cparam1, cparam2) != 4) throw std::runtime_error("Error reading axes flipping parameters for 3D output from input parameter file.");
+		bool bXFlip = atoi(cparam) == 0 ? false : (atoi(cparam) == 1 ? true : throw std::runtime_error("Unknown value of X axis flipping parameter in input parameter file."));
+		bool bYFlip = atoi(cparam1) == 0 ? false : (atoi(cparam1) == 1 ? true : throw std::runtime_error("Unknown value of Y axis flipping parameter in input parameter file."));
+		bool bZFlip = atoi(cparam2) == 0 ? false : (atoi(cparam2) == 1 ? true : throw std::runtime_error("Unknown value of Z axis flipping parameter in input parameter file."));
+
+		fgets(cline, 1024, ff0); strtok(cline, "\n"); // 31. Make thick output slices: 0=no, 1=MIP, 2=averaging; slice thickness in UL
 		if (sscanf(cline, "%s %s %s", ctitle, cparam, cparam1) != 3) throw std::runtime_error("Error reading thick output slices info from input parameter file.");
 		int iThickSlicesOut = atoi(cparam);
+		int kThickStep(0);
 		double dOutSliceThickness = atof(cparam1);
-		int kThickStep = (int)lround(dOutSliceThickness / zst);
-		if (kThickStep <= 1) { kThickStep = 1;  iThickSlicesOut = 0; } // thick slices are actually thin
-		if (kThickStep > nz) kThickStep = int(nz); // there is only a single thick slice, as thick as the whole reconstructed volume
+		if (iThickSlicesOut)
+		{
+			kThickStep = (int)(dOutSliceThickness / zst + 0.5);
+			if (kThickStep <= 1) throw std::runtime_error("Slice thickness is smaller than or equal to the voxel thickness.");
+		}
 		switch (iThickSlicesOut)
 		{
 		case 0: printf("\nOutput slices will have single-voxel thickness."); 
@@ -617,7 +703,7 @@ int main(int argc, char* argv[])
 			throw std::runtime_error("Error: unknown value for thick output slices mode in input parameter file.");
 		}
 
-		fgets(cline, 1024, ff0); strtok(cline, "\n"); // 30. Save or not the sampling matrix in files
+		fgets(cline, 1024, ff0); strtok(cline, "\n"); // 32. Save or not the sampling matrix in files
 		if (sscanf(cline, "%s %s", ctitle, cparam) != 2) throw std::runtime_error("Error reading save_or_not inverse sampling matrix switch from input parameter file.");
 		int nSaveDefocCAmpsOrSamplingMatrix = atoi(cparam);
 		if (nSaveDefocCAmpsOrSamplingMatrix == 1)
@@ -625,10 +711,10 @@ int main(int argc, char* argv[])
 		else
 			printf("\nSampling matrix will not be saved in files");
 
-		fgets(cline, 1024, ff0); strtok(cline, "\n"); // 31. Import and reprocess existing 3D potential or beta files
+		fgets(cline, 1024, ff0); strtok(cline, "\n"); // 33. Import and reprocess existing 3D potential or beta files
 		if (sscanf(cline, "%s %s", ctitle, cparam) != 2) throw std::runtime_error("Error reading import and reprocess existing 3D potential or beta files switch from input parameter file.");
-		int imode3DPotential = atoi(cparam);
-		switch (imode3DPotential)
+		int imodeReprocess = atoi(cparam);
+		switch (imodeReprocess)
 		{
 		case 0:
 			printf("\nThis program will reconstruct 3D potential or beta from defocused images and save it in output files.");
@@ -640,17 +726,36 @@ int main(int argc, char* argv[])
 			throw std::runtime_error("Error: unknown value of import and reprocess existing 3D potential or beta files switch in input parameter file.");
 		}
 
-		if (imode3DPotential == 1) // only read in pre-caculated 3D potential or beta from "output" files and reprocess them
+		if (imodeReprocess == 1) // only read in pre-caculated 3D potential or beta from "output" files and reprocess them
 		{
 			bGRDinput = bTIFFinput = bRAWinput = false;
 			string strTemp = GetFileExtension(filenamebaseOut);
 			if (strTemp == string(".TIFF") || strTemp == string(".TIF")) bTIFFinput = true;
 			else if (strTemp == string(".GRD")) bGRDinput = true;
 			else if (strTemp == string(".RAW")) bRAWinput = true;
-			else throw std::runtime_error("Error: input filename extension (in this mode - it is taken from the output filename template) must be TIF, GRD or RAW.");
+			else
+				if (strTemp == string(".DCM"))
+				{
+					bDICOMoutput = true;
+					printf("\nWARNING: input filename extension (in this mode - it is taken from the output filename template) must be TIF, GRD or RAW.");
+					printf("\nPress 't' if you want to substitute TIFF extension for input files, 'g' for GRD, 'r' for RAW or any other symbol to exit: ");
+					int c = getchar(); 
+					if (c == 't' || c == 'T') { bTIFFinput = true; filenamebaseOut.replace(filenamebaseOut.find_last_of("."), filenamebaseOut.length() - filenamebaseOut.find_last_of("."), ".tif"); }
+					else if (c == 'g' || c == 'G') { bGRDinput = true; filenamebaseOut.replace(filenamebaseOut.find_last_of("."), filenamebaseOut.length() - filenamebaseOut.find_last_of("."), ".grd"); }
+					else if (c == 'r' || c == 'R') { bRAWinput = true; filenamebaseOut.replace(filenamebaseOut.find_last_of("."), filenamebaseOut.length() - filenamebaseOut.find_last_of("."), ".raw"); }
+					else exit(1);
+				}
+			else throw std::runtime_error("Error: input filename extension (in this mode - it is taken from the output filename template) must be TIF, GRD, DCM or RAW.");
+		}
+		else
+		{
+			if (nx != 2 * nxd2 || ny != 2 * nyd2)
+				throw std::runtime_error("Error: width and height parameters in input parameter file must be even.");
+			if (nz != 2 * nzd2)
+				throw std::runtime_error("Error: number of z points must be even.");
 		}
 
-		if (imode3DPotential != 1 && (iCTFcorrectionMode == 2 || iCTFcorrectionMode == 4) && (!bSingleDefocusDistance || iAstigmatism != 0))
+		if (imodeReprocess != 1 && (iCTFcorrectionMode == 2 || iCTFcorrectionMode == 4) && (!bSingleDefocusDistance || iAstigmatism != 0))
 		{
 			printf("\n\nWARNING: different defocus distances and/or non-zero astigmatism have been detected in the input file %s.", defocfile.c_str());
 			printf("\n3D CTF correction have only been implemented for constant defocus distance and no astigmatism, possibly leading to inaccurate results in this case.");
@@ -659,7 +764,7 @@ int main(int argc, char* argv[])
 			if (c != 'y' && c != 'Y') exit(1);
 		}
 
-		fgets(cline, 1024, ff0); strtok(cline, "\n"); // // 32. Folder name for auxiliary files
+		fgets(cline, 1024, ff0); strtok(cline, "\n"); // // 34. Folder name for auxiliary files
 		if (sscanf(cline, "%s %s", ctitle, cparam) != 2) throw std::runtime_error("Error reading folder name for auxiliary files from input parameter file.");
 		string folderAux = cparam;
 		printf("\nFolder for auxiliary file output = %s", folderAux.c_str());
@@ -668,7 +773,7 @@ int main(int argc, char* argv[])
 		if (!std::filesystem::exists(folderAux))
 			throw std::runtime_error("Error: the specified auxiliary file folder does not seem to exist.");
 
-		fgets(cline, 1024, ff0); strtok(cline, "\n"); // 33. Number of parallel threads
+		fgets(cline, 1024, ff0); strtok(cline, "\n"); // 35. Number of parallel threads
 		if (sscanf(cline, "%s %s", ctitle, cparam) != 2) throw std::runtime_error("Error reading number of parallel threads from input parameter file.");
 		int nThreads = atoi(cparam);
 		printf("\nNumber of parallel threads = %d", nThreads);
@@ -685,7 +790,7 @@ int main(int argc, char* argv[])
 		vector<string> vinfilenamesTot, vinfilenames1Tot; // input filenames for the defocused intensities or complex amplitudes
 		vector< vector<string> > vvinfilenames(nangles), vvinfilenames1(nangles); // same input filenames for the defocused series in the form of vector of vectors
 		vector<string> vinfilenamesTotSel; // temporary storage for input filenames before selecting a subseries
-		if (imode3DPotential) // only read in pre-caculated 3D potential or beta from "output" files and reprocess them
+		if (imodeReprocess) // only read in pre-caculated 3D potential or beta from "output" files and reprocess them
 		{
 			printf("\nInput file name base for pre-existing 3D potential or beta = %s", filenamebaseOut.c_str());
 			FileNames(1, nz, filenamebaseOut, vinfilenamesTot); // create 1D array of input filenames to read the input 2D slices of a previously reconstructed 3D object
@@ -716,39 +821,7 @@ int main(int argc, char* argv[])
 			}
 		}
 
-		string filenamebaseOutNew("BAD_STRING"), filenamebaseOut16("BAD_STRING"), filenamebaseOutSMatrix("BAD_STRING"); // don't use it, unless it is redefined later
-		vector<string> voutfilenamesTot, voutfilenamesTotThick; // output filenames for the reconstructed 3D potential or beta
-		if (imode3DPotential) // output the the renormalized 3D potential or beta
-		{
-			std::filesystem::path apath(filenamebaseOut);
-			filenamebaseOutNew = apath.filename().string();
-			filenamebaseOutNew.insert(filenamebaseOutNew.find_last_of("."), "R");
-			filenamebaseOutNew = folderAux + filenamebaseOutNew;
-			printf("\nOutput file name base for the renormalized 3D potential or beta = %s", filenamebaseOutNew.c_str());
-			FileNames(1, nz, filenamebaseOutNew, voutfilenamesTot); // create 1D array of output filenames to save 2D slices of the filtered and/or rescaled 3D object
-			filenamebaseOut16 = filenamebaseOutNew;
-			filenamebaseOut16.insert(filenamebaseOut16.find_last_of("."), "T");
-			FileNames(1, nz, filenamebaseOut16, voutfilenamesTotThick); // create 1D array of output filenames to save 2D slices of the filtered and/or rescaled 3D object in thick slices
-		}
-		else
-		{
-			FileNames(1, nz, filenamebaseOut, voutfilenamesTot); // create 1D array of output filenames to save 2D slices of the reconstructed 3D object
-			filenamebaseOut16 = filenamebaseOut;
-			filenamebaseOut16.insert(filenamebaseOut16.find_last_of("."), "T");
-			FileNames(1, nz, filenamebaseOut16, voutfilenamesTotThick); // create 1D array of output filenames to save 2D slices of the reconstructed 3D object in thick slices
-		}
-
-		vector<string> voutfilenamesPeaksTot; // output filenames for the peak-localized reconstructed 3D potential or beta
-		if (imodePeaks) // output filenames for the peak-localized 3D potential or beta
-		{
-			std::filesystem::path apath(filenamebaseOut);
-			filenamebaseOutNew = apath.filename().string();
-			filenamebaseOutNew.insert(filenamebaseOutNew.find_last_of("."), "A");
-			filenamebaseOutNew = folderAux + filenamebaseOutNew;
-			printf("\nOutput file name base for the peak-localized 3D potential or beta = %s", filenamebaseOutNew.c_str());
-			FileNames(1, nz, filenamebaseOutNew, voutfilenamesPeaksTot); // create 1D array of output filenames to save 2D slices of the peak-localized 3D object
-		}
-
+		string filenamebaseOutSMatrix("BAD_STRING"); // don't use it, unless it is redefined later
 		vector<string> voutfilenamesTotDefocCAmpOrFM; // output filenames for sampling matrix
 		if (nSaveDefocCAmpsOrSamplingMatrix == 1) // create filenames for saving the sampling matrix
 		{
@@ -766,6 +839,8 @@ int main(int argc, char* argv[])
 
 		//*********************************** start main calculations
 		bool bAbort(false);
+		bool bPadded(false); // this indicates if input images have been padded, and so the output images need to be trimmed before saving to files
+		index_t nx0(0), ny0(0); // these numbers will store the actual dimensions of input images, in case they need to be restored later
 
 		std::unique_ptr<IXAHead> pHead(new Wavehead2D(wl, ylo, yhi, xlo, xhi)); // any header data in input image files will be ignored
 
@@ -777,7 +852,7 @@ int main(int argc, char* argv[])
 
 		XArray3D<float> K3out; // big 3D reconstructed array (will be allocated after Samp3 matrix is truncated)
 
-		if (!imode3DPotential) // do phase retrieval and backpropagation prior to 3D filtering and output
+		if (!imodeReprocess) // do phase retrieval and backpropagation prior to 3D filtering and output
 		{
 			index_t naSym{ 0 }, naSymCurrent{ 0 }; // indexes of illumination angles with respect to subdivision into symmetry subsets (only used when imodeSymmetry == 1)
 			XArray3D<fcomplex> V3; // 3D potential or beta in the Fourier space
@@ -834,7 +909,7 @@ int main(int argc, char* argv[])
 					vector<string> voutfilenames(nz);
 
 					XArray2D<float> int0; // input defocused intensity image
-					double zout = vdefocus[0].b; // defocus distance
+					double zout = vdefocus[0].b - dzextra; // defocus distance
 
 					// read defocused images from files
 					if (bVerboseOutput) start_timeNow = std::chrono::system_clock::now(); // start of file read time
@@ -845,8 +920,11 @@ int main(int argc, char* argv[])
 					else XArData::ReadFileGRD(int0, vinfilenames[0].c_str(), wl); //	read input GRD files
 					if (bVerboseOutput) liFileReadTime += (long)std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now() - start_timeNow).count();
 
-					index_t ny0 = int0.GetDim1();
-					index_t nx0 = int0.GetDim2();
+					if (ny0 == 0) ny0 = int0.GetDim1();
+					else if (ny0 != int0.GetDim1()) throw std::runtime_error("Error: y-dimension in the input file is different from that in previous input files.");
+					if (nx0 == 0) nx0 = int0.GetDim2();
+					else if (nx0 != int0.GetDim2()) throw std::runtime_error("Error: x-dimension in the input file is different from that in previous input files.");
+
 					if (nx0 != nx || ny0 != ny)
 					{
 						if (nx0 < nx && ny0 <= ny || ny0 < ny && nx0 <= nx)
@@ -854,7 +932,8 @@ int main(int argc, char* argv[])
 							//printf("\nWARNING: 2D array from the image file will be padded with 1.0 to the array dimensions (Width = %zd, Height = %zd).", nx, ny);
 							XArray2DMove<float> tmp2(int0);
 							tmp2.Pad((ny - ny0) / 2, ny - ny0 - (ny - ny0) / 2, (nx - nx0) / 2, nx - nx0 - (nx - nx0) / 2, 1.0f);
-							// NOTE that the reconstructed 3D volume will NOT be trimmed back before saving, as it gets too complicated and error prone
+							bPadded = true;
+							// NOTE that the reconstructed 3D volume WILL be trimmed back before saving
 						}
 						else if (nx0 > nx && ny0 >= ny || ny0 > ny && nx0 >= nx)
 						{
@@ -1199,7 +1278,7 @@ int main(int argc, char* argv[])
 				//fnorm = (float)(wl / (4.0 * PI * sqrt(1.0 + asigma * asigma))); // this is the conversion factor for delta
 			K3out *= fnorm;
 
-		} // end of case if imode3DPotential == 0
+		} // end of case if imodeReprocess == 0
 		else // read in pre-existing 3D distribution of the electrostatic potential or beta
 		{
 			printf("\n\nReading pre-existing 3D distribution of the electrostatic potential or beta from files ...");
@@ -1275,13 +1354,13 @@ int main(int argc, char* argv[])
 		}
 
 		// apply the regularized inverse 3D (-Laplacian) and high-pass filter
-		if (imodeInvLaplace && imode3DPotential || (dlpfiltersize > 0 && dlpfiltersize < (xhi - xlo)))
+		if (imodeInvLaplace && imodeReprocess || (dlpfiltersize > 0 && dlpfiltersize < (xhi - xlo)))
 		{
 			if (bVerboseOutput) start_timeNow = std::chrono::system_clock::now(); // start of inverse 3D FFT time
 
 			Fftwd3frc fft3f((int)nz, (int)ny, (int)nx, nThreads, true, true, false); // create an Fftwd3frc object in the real space state
 
-			if (imodeInvLaplace && imode3DPotential) // in the case !imode3DPotential inverse Laplacian is calculated in the Fourier space
+			if (imodeInvLaplace && imodeReprocess) // in the case !imodeReprocess inverse Laplacian is calculated in the Fourier space
 			{
 				printf("\nInverse Laplace filtering the reconstructed 3D object ...");
 				fft3f.InverseMLaplacian(K3out, epsilon, epsilon);
@@ -1314,85 +1393,34 @@ int main(int argc, char* argv[])
 			xa3spln.Rotate3(K3out, angleZout * PI180, angleY1out * PI180, angleZ2out * PI180, nThreads);
 		}
 
-		// save the 3D array in files
-		if (true) // the following code is encapsulated in a {} block, so that temporary variables could be deleted by their destructors
+		// trim back the reconstructed volume if input images were padded
+		if (bPadded)
 		{
-			// create thick slices if required
-			XArray3D<float> K3outThick;
-			if (iThickSlicesOut > 0)
-			{
-				printf("\nCreating thick output slices ...");
-				index_t nz1 = int(nz / kThickStep);
-				K3outThick.Resize(nz1, ny, nx);
-				K3outThick.SetHeadPtr(new xar::Wavehead3D(wl, zlo, zhi, ylo, yhi, xlo, xhi));
-				#pragma omp parallel for
-				for (int j = 0; j < ny; j++)
-				{
-					index_t k;
-					float ftemp;
-					for (index_t i = 0; i < nx; i++)
-						for (index_t k1 = 0; k1 < nz1; k1++)
-						{
-							k = k1 * kThickStep;
-							ftemp = K3out[k][j][i];
-							if (iThickSlicesOut == 1) // MIP
-							{
-								for (index_t n = 1; n < kThickStep; n++) if (K3out[k + n][j][i] > ftemp) ftemp = K3out[k + n][j][i];
-							}
-							else // averaging over the slice thickness
-							{
-								for (index_t n = 1; n < kThickStep; n++)  ftemp += K3out[k + n][j][i];
-								ftemp /= float(kThickStep);
-							}
-							K3outThick[k1][j][i] = ftemp;
-						}
-				}
+			K3out.Trim((nx - nx0) / 2, nx - nx0 - (nx - nx0) / 2, (ny - ny0) / 2, ny - ny0 - (ny - ny0) / 2, (nx - nx0) / 2, nx - nx0 - (nx - nx0) / 2);
+			nz = nx0;
+			ny = ny0;
+			nx = nx0;
+			nxny = nx * ny;
+			xlo = -0.5 * xst * nx;
+			xhi = xlo + xst * nx;
+			ylo = -0.5 * yst * ny;
+			yhi = ylo + yst * ny;
+			if (iModality) { zlo = xlo; zhi = xhi; } // X-ray case
+			else // TEM case
+			{ 
+				zlo += double(index_t((nx - nx0) / 2)) * zst;  
+				zlo -= double(index_t(nx - nx0 - (nx - nx0) / 2)) * zst; 
 			}
+			K3out.SetHeadPtr(new Wavehead3D(wl, zlo, zhi, ylo, yhi, xlo, xhi));
+		}
 
-			printf("\n\nSaving the reconstructed 3D object into output files %s, etc. ...", voutfilenamesTot[0].c_str());
-			if (bVerboseOutput) start_timeNow = std::chrono::system_clock::now(); // start of file write time
-
-			index_t nz1 = iThickSlicesOut > 0 ? K3outThick.GetDim1() : nz;
-			if (nz1 != nz) voutfilenamesTotThick.resize(nz1); 
-
-			if (bTIFFoutput)
-			{
-				if (bTIFF16out) // 16-bit TIFF output
-				{
-					// create rescaled 16-bit data
-					float dPropConst = float(itiff16_maxout) / (tiff16_maxin - tiff16_minin);
-					float* p3 = iThickSlicesOut > 0 ? &K3outThick[0][0][0] : &K3out[0][0][0];
-					XArray3D<long> K3outInt(nz1, ny, nx);
-					#pragma omp parallel for
-					for (int k = 0; k < nz1; k++)
-					{
-						index_t kk = k * nxny;
-						float* p3a;
-						for (index_t j = 0; j < ny; j++)
-						{
-							p3a = p3 + kk + j * nx;
-							for (index_t i = 0; i < nx; i++)
-							{
-								if (*(p3a + i) < tiff16_minin) K3outInt[k][j][i] = 0;
-								else if (*(p3a + i) > tiff16_maxin) K3outInt[k][j][i] = itiff16_maxout;
-								else K3outInt[k][j][i] = lround(dPropConst * (*(p3a + i) - tiff16_minin));
-							}
-						}
-					}
-					TIFFWriteFileStack(K3outInt, voutfilenamesTotThick, eTIFF16, false); // re-scaled 16-bit, possibly thick, slices
-				}
-				else // 32-bit TIFF output
-				{
-					if (iThickSlicesOut > 0) TIFFWriteFileStack(K3outThick, voutfilenamesTotThick, eTIFF32); // 32-bit thick slices
-				}
-				TIFFWriteFileStack(K3out, voutfilenamesTot, eTIFF32); // 32-bit thin slices are saved in any case
-			}
-			else // GRD output
-			{
-				if (iThickSlicesOut > 0) XArData::WriteFileStackGRD(K3outThick, voutfilenamesTotThick, eGRDBIN); // thick slices
-				XArData::WriteFileStackGRD(K3out, voutfilenamesTot, eGRDBIN); // thin slices are saved in any case
-			}
-			if (bVerboseOutput) liFileWriteTime += (long)std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now() - start_timeNow).count();
+		// in the TEM case, place the reconstructed volume into hte positive octant in 3D Cartesian space
+		if (iModality == 0)
+		{
+			xhi -= xlo; xlo = 0.0;
+			yhi -= ylo; ylo = 0.0;
+			zhi -= zlo; zlo = 0.0;
+			K3out.SetHeadPtr(new Wavehead3D(wl, zlo, zhi, ylo, yhi, xlo, xhi));
 		}
 
 		// find peaks in the reconstructed 3D distribution
@@ -1401,14 +1429,125 @@ int main(int argc, char* argv[])
 			printf("\nSearching for peak positions in the 3D distribution of the electrostatic potential or beta ...");
 			if (bVerboseOutput) start_timeNow = std::chrono::system_clock::now(); // start of peak localization time
 
-			int natom = FindPeaks(K3out, datomsizeXY, datomsizeZ, natommax, filenamebaseOutNew);
+			int natom = FindPeaks(K3out, datomsizeXY, datomsizeZ, natommax, filenamebaseOut);
 
+			vector<string> voutfilenamesPeaksTot; // output filenames for the peak-localized reconstructed 3D potential or beta
+			std::filesystem::path apath(filenamebaseOut);
+			string filenamebaseOutNew = apath.filename().string();
+			filenamebaseOutNew.insert(filenamebaseOutNew.find_last_of("."), "A");
+			filenamebaseOutNew = folderAux + filenamebaseOutNew;
+			FileNames(1, nz, filenamebaseOutNew, voutfilenamesPeaksTot); // create 1D array of output filenames to save 2D slices of the peak-localized 3D object
 			printf("\nSaving the reconstructed peak-localized 3D object into output files %s, etc. ...", voutfilenamesPeaksTot[0].c_str());
+
 			if (bTIFFoutput) TIFFWriteFileStack(K3out, voutfilenamesPeaksTot, eTIFF32);
 			else XArData::WriteFileStackGRD(K3out, voutfilenamesPeaksTot, eGRDBIN);
 
 			if (bVerboseOutput) liPeakLocalizeTime = (long)std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now() - start_timeNow).count();
 		} // end of peak localization module
+
+		// reslice and flip axes in the output 3D array
+		if (iResliceMode || bXFlip || bYFlip || bZFlip)
+		{
+			printf("\nReslicing the output 3D volume ...");
+			K3out = K3out.Reslice(iResliceMode, bXFlip, bYFlip, bZFlip);   
+			nz = K3out.GetDim1(); ny = K3out.GetDim2(); nx = K3out.GetDim3();
+		}
+
+		// create thick slices if required
+		if (iThickSlicesOut > 0)
+		{
+			printf("\nCreating thick output slices ...");
+			if (kThickStep > nz) throw std::runtime_error("Slice thickness is larger than the sample thickness.");
+			index_t nzThick = int(nz / kThickStep);
+
+			XArray3D<float> K3outThick(nzThick, ny, nx);
+			K3outThick.SetHeadPtr(K3out.GetHeadPtr()->Clone());
+
+			#pragma omp parallel for
+			for (int j = 0; j < ny; j++)
+			{
+				index_t k;
+				float ftemp;
+				for (index_t i = 0; i < nx; i++)
+					for (index_t k1 = 0; k1 < nzThick; k1++)
+					{
+						k = k1 * kThickStep;
+						ftemp = K3out[k][j][i];
+						if (iThickSlicesOut == 1) // MIP
+						{
+							for (index_t n = 1; n < kThickStep; n++) if (K3out[k + n][j][i] > ftemp) ftemp = K3out[k + n][j][i];
+						}
+						else // averaging over the slice thickness
+						{
+							for (index_t n = 1; n < kThickStep; n++)  ftemp += K3out[k + n][j][i];
+							ftemp /= float(kThickStep);
+						}
+						K3outThick[k1][j][i] = ftemp;
+					}
+			}
+			K3out = K3outThick;
+			nz = nzThick; // thin slices can disappear completely at this stage
+		}
+
+		// creat 16-bit output if required
+		XArray3D<long> K3outInt; // we declare this "long", even though we use it for 16-bit output, because XArray<T> is not defined for T = unsigned short
+		if (b16bitout) // 16-bit output
+		{
+			printf("\nCreating 16-bit output slices ...");
+			K3outInt.Resize(nz, ny, nx);
+			K3out.Convert(&K3outInt[0][0][0], fbit16_minin, fbit16_maxin, long(0), lbit16_maxout, nullptr, nullptr);
+		}
+
+		vector<string> voutfilenamesTot; // output filenames for the reconstructed 3D potential or beta
+		if (imodeReprocess) // output the the renormalized 3D potential or beta
+		{
+			std::filesystem::path apath(filenamebaseOut);
+			string filenamebaseOutNew = apath.filename().string();
+			filenamebaseOutNew.insert(filenamebaseOutNew.find_last_of("."), "R");
+			if (bDICOMoutput) filenamebaseOutNew.replace(filenamebaseOutNew.find_last_of("."), filenamebaseOutNew.length() - filenamebaseOutNew.find_last_of("."), ".dcm");
+			filenamebaseOutNew = folderAux + filenamebaseOutNew;
+			printf("\nOutput file name base for the renormalized 3D potential or beta = %s", filenamebaseOutNew.c_str());
+			if (bDICOMoutput)
+				FileNames(1, nz, filenamebaseOutNew, voutfilenamesTot, true); // create 1D array of output filenames to save 2D slices of the filtered and/or rescaled 3D object
+			else
+				FileNames(1, nz, filenamebaseOutNew, voutfilenamesTot); // create 1D array of output filenames to save 2D slices of the filtered and/or rescaled 3D object
+		}
+		else
+		{
+			if (bDICOMoutput)
+				FileNames(1, nz, filenamebaseOut, voutfilenamesTot, true); // create 1D array of output filenames to save 2D slices of the reconstructed 3D object
+			else
+				FileNames(1, nz, filenamebaseOut, voutfilenamesTot); // create 1D array of output filenames to save 2D slices of the reconstructed 3D object
+		}
+
+		printf("\n\nSaving the reconstructed 3D object into output files %s, etc. ...", voutfilenamesTot[0].c_str());
+		if (bVerboseOutput) start_timeNow = std::chrono::system_clock::now(); // start of file write time
+
+		if (bTIFFoutput)
+		{
+			if (b16bitout) // 16-bit TIFF output
+				TIFFWriteFileStack(K3outInt, voutfilenamesTot, eTIFF16, false); // 16-bit thin or thick slices
+			else // 32-bit TIFF output
+				TIFFWriteFileStack(K3out, voutfilenamesTot, eTIFF32); // 32-bit thin or thick slices
+		}
+		else if (bDICOMoutput)
+		{
+			if (b16bitout) // 16-bit DICOM output
+				WriteFileStackDICOM(K3outInt, mTags, voutfilenamesTot, eDICOM16, false); // 16-bit thin or thick slices
+			else
+				// 32-bit DICOM output (this appears to be not implemented in GDCM ver.3.0.18 (Sep 2022))
+				// we should not be able to get here (there are checks at the start to prevent this), but in case we do, we throw an exceptioin here
+				throw std::runtime_error("Error: floating-point data cannot be saved in DICOM files.");
+		}
+		else // GRD output
+			if (b16bitout)
+				// we should not be able to get here (there are checks at the start to prevent this), but in case we do, we throw an exceptioin here
+				throw std::runtime_error("Error: 16-bit data data cannot be saved in GRD files.");
+			else
+				XArData::WriteFileStackGRD(K3out, voutfilenamesTot, eGRDBIN); // 32-bit thin or thick slices
+
+		if (bVerboseOutput) liFileWriteTime += (long)std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now() - start_timeNow).count();
+		
 
 		if (bVerboseOutput)
 		{
