@@ -1,6 +1,8 @@
 # Unified Tomographic Reconstruction solution
 A collection of C++ source code modules for forward and inverse simulations of Unified Tomographic Reconstruction.
 
+UPDATE 14 October 2022. Multiple updates, improvements and bug fixes applied to the previous version of the code. Both the Windows x64 and the Ubuntu Linux versions have been recompiled and tested. Main addition for this update is the GDCM library (https://github.com/malaterre/GDCM), which is used here for optionally saving output files in standard DICOM format. See details of the updated usage in the Readme*.txt files that can be found in each of the four main projects, MsctKirkland, PDB, PDB-Compare and PhaseRetrieval.
+
 UPDATE 14 July 2022. Multiple updates, improvements and bug fixes applied to the previous version of the code. The arXiv paper describing this method has been also updated - see https://arxiv.org/abs/2206.09151 ([v4] Fri, 8 Jul 2022 03:06:41 UTC). Both the Windows x64 and the Ubuntu Linux versions have been recompiled and tested.
 
 UPDATE 3 July 2022. Multiple updates and bug fixes have been applied. The main change, compared to the previous version, is related to the use of mutlithreading in FFTW library. The FFTW libraries have been compiled locally in Windows 10, in Linux we still use the standard installed FFTW libraries (version 3.3.5). Statically linked FFTW libraries are now used instead of DLLs in most places. The internal multithreading is still based on OMP, but has been re-modelled, resulting in imroved (x2-x3) performance. Proper (quantitatively correct) normalization and noise filtering have been implemented in UTR.
